@@ -1,3 +1,20 @@
+-- Campuses table (must be created first - other tables reference it as foreign key)
+CREATE TABLE IF NOT EXISTS campuses (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  address TEXT,
+  phone TEXT,
+  email TEXT,
+  capacity INTEGER,
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Ensure at least one default campus exists
+INSERT INTO campuses (name, status) 
+SELECT 'Main Campus', 'active'
+WHERE NOT EXISTS (SELECT 1 FROM campuses LIMIT 1);
+
 -- Users
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
