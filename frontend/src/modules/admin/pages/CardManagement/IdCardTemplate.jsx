@@ -24,9 +24,9 @@ export default function IdCardTemplate() {
     const getDefaultFields = (typeValue) => {
         const t = String(typeValue || '').toLowerCase();
         if (t === 'employee' || t === 'teacher') {
-            return '{institute_name}, {staff_photo}, Name : {name}, {designation}, {gender}, Joining : {joining_date}, DoB : {birthday}, {present_address}, Executive Director RDO : {signature}';
+            return '{institute_name}, {staff_photo}, Name : {name}, {designation}, {gender}, Joining : {joining_date}';
         }
-        return '{institute_name}, {logo}, {student_photo}, Student Name : {name}, Father Name : {father_name}, Register No : {register_no}, DOB : {birthday}, Address : {present_address}, Executive Director RDO : {signature}';
+        return '{institute_name}, {logo}, {student_photo}, Student Name : {name}, Father Name : {father_name}, Register No : {register_no}, Class : {class}, Section : {section}';
     };
 
     const getDefaultColor = (typeValue) => {
@@ -57,7 +57,7 @@ export default function IdCardTemplate() {
 
     const handleSave = async () => {
         try {
-            const payload = { ...form, campusId };
+            const payload = { ...form, campusId, fields: getDefaultFields(form.type) };
             delete payload.id;
             if (form.id) {
                 await idCardTemplateApi.update(form.id, payload);
@@ -116,7 +116,7 @@ export default function IdCardTemplate() {
                     <Heading as="h3" size="lg" mb={1}>ID Card Templates</Heading>
                     <Text color={textColorSecondary}>Design and manage ID card templates</Text>
                 </Box>
-                <Button leftIcon={<MdAdd />} colorScheme="blue" onClick={() => { setForm({ id: '', name: '', type: 'Student', layout: 'Vertical', bgColor: '#4299E1', logoUrl: '', fields: '', instructions: '' }); onOpen(); }}>
+                <Button leftIcon={<MdAdd />} colorScheme="blue" onClick={() => { setForm({ id: '', name: '', type: 'Student', layout: 'Vertical', bgColor: '#4299E1', logoUrl: '', fields: getDefaultFields('Student'), instructions: '' }); onOpen(); }}>
                     Create Template
                 </Button>
             </Flex>
@@ -158,7 +158,19 @@ export default function IdCardTemplate() {
                                     <Td><Box w="60px" h="20px" bg={template.bgColor} borderRadius="md" /></Td>
                                     <Td>{template.fields}</Td>
                                     <Td>
-                                        <IconButton aria-label="Edit" icon={<MdEdit />} size="sm" variant="ghost" onClick={() => { setForm(template); onOpen(); }} />
+                                        <IconButton
+                                            aria-label="Edit"
+                                            icon={<MdEdit />}
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => {
+                                                setForm({
+                                                    ...template,
+                                                    fields: getDefaultFields(template?.type),
+                                                });
+                                                onOpen();
+                                            }}
+                                        />
                                         <IconButton aria-label="Delete" icon={<MdDelete />} size="sm" variant="ghost" colorScheme="red" onClick={() => handleDelete(template.id)} />
                                     </Td>
                                 </Tr>
@@ -184,12 +196,11 @@ export default function IdCardTemplate() {
                                 value={form.type}
                                 onChange={(e) => {
                                     const nextType = e.target.value;
-                                    const nextDefaults = getDefaultFields(nextType);
                                     setForm((prev) => ({
                                         ...prev,
                                         type: nextType,
                                         bgColor: prev.bgColor || getDefaultColor(nextType),
-                                        fields: String(prev.fields || '').trim() ? prev.fields : nextDefaults,
+                                        fields: getDefaultFields(nextType),
                                     }));
                                 }}
                             >
@@ -231,20 +242,11 @@ export default function IdCardTemplate() {
                             <Input
                                 value={form.fields}
                                 onChange={(e) => setForm({ ...form, fields: e.target.value })}
+                                isReadOnly
                                 placeholder={form.type === 'Employee'
-                                    ? 'Photo, Name, ID, Designation, Department, Phone'
-                                    : 'Photo, Name, ID, Roll No, Class, Section, Father Name'}
+                                    ? getDefaultFields('Employee')
+                                    : getDefaultFields('Student')}
                             />
-                            {!String(form.fields || '').trim() ? (
-                                <Button
-                                    mt={2}
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setForm((prev) => ({ ...prev, fields: getDefaultFields(prev.type) }))}
-                                >
-                                    Use Default Fields
-                                </Button>
-                            ) : null}
                         </FormControl>
                         <FormControl mb={3}>
                             <FormLabel>Instructions</FormLabel>

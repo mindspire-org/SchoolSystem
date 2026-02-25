@@ -357,18 +357,22 @@ export default function StudentIdCard() {
                     .sigLine{height:20px;border-bottom:2px solid rgba(17,24,39,.9)}
                     .sigNote{font-size:9px;color:#4b5563;margin-top:6px;font-weight:800}
 
-                    .idcard.layout-vertical{width:215px;min-height:340px;height:auto}
-                    .idcard.layout-vertical.tall{min-height:420px}
-                    .idcard.layout-vertical:before{inset:-45% -55% auto auto;width:240px;height:240px;transform:rotate(35deg)}
-                    .idcard.layout-vertical .top{padding:12px 12px 10px}
-                    .idcard.layout-vertical .mid{flex-direction:column;align-items:center;gap:10px;padding:12px}
-                    .idcard.layout-vertical .photoWrap{width:100%;flex-direction:column;justify-content:center;align-items:center;gap:8px}
-                    .idcard.layout-vertical .photo,.idcard.layout-vertical .photoFallback{width:78px;height:78px;border-radius:14px}
-                    .idcard.layout-vertical .rolePill{margin:0}
+                    .idcard.layout-vertical{width:240px;min-height:360px;height:auto;border-radius:18px}
+                    .idcard.layout-vertical.tall{min-height:440px}
+                    .idcard.layout-vertical:before{inset:-55% -70% auto auto;width:280px;height:280px;transform:rotate(35deg)}
+                    .idcard.layout-vertical .top{padding:14px 14px 12px}
+                    .idcard.layout-vertical .brandName{font-size:13px}
+                    .idcard.layout-vertical .brandSub{font-size:10.5px;opacity:.95}
+                    .idcard.layout-vertical .chip{display:none}
+                    .idcard.layout-vertical .mid{flex-direction:column;align-items:center;gap:12px;padding:14px}
+                    .idcard.layout-vertical .photoWrap{width:100%;flex-direction:column;justify-content:center;align-items:center;gap:10px}
+                    .idcard.layout-vertical .photo,.idcard.layout-vertical .photoFallback{width:96px;height:96px;border-radius:16px;border-width:3px}
+                    .idcard.layout-vertical .rolePill{margin:0;font-size:10px}
                     .idcard.layout-vertical .details{width:100%}
-                    .idcard.layout-vertical .name{text-align:center;font-size:14px;margin-bottom:8px}
-                    .idcard.layout-vertical .grid{grid-template-columns:minmax(0,1fr);gap:8px}
-                    .idcard.layout-vertical .kv{padding:8px 10px;border-radius:10px}
+                    .idcard.layout-vertical .name{text-align:center;font-size:15px;margin-bottom:10px}
+                    .idcard.layout-vertical .grid{grid-template-columns:minmax(0,1fr);gap:9px}
+                    .idcard.layout-vertical .kv{padding:9px 11px;border-radius:12px}
+                    .idcard.layout-vertical .k{font-size:9.5px}
                     .idcard.layout-vertical .v{font-size:12px}
 
                     .idcard.no-photo .mid{gap:0}
