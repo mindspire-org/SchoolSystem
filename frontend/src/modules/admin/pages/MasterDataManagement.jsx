@@ -34,9 +34,12 @@ import {
     Badge,
     Switch,
 } from '@chakra-ui/react';
-import { MdAdd, MdEdit, MdDelete, MdSchool, MdWork, MdAttachMoney, MdApartment, MdClass } from 'react-icons/md';
-import Card from '../../../components/card/Card'; // Check correct path
+import { MdAdd, MdEdit, MdDelete, MdSchool, MdWork, MdAttachMoney, MdApartment, MdClass, MdCreditCard, MdDescription } from 'react-icons/md';
+import Card from '../../../components/card/Card'; 
 import { masterDataApi, classesApi } from '../../../services/api';
+import IdCardTemplate from './CardManagement/IdCardTemplate';
+import AdmitCardTemplate from './CardManagement/AdmitCardTemplate';
+import CertificateTemplate from './Certificates/CertificateTemplate';
 
 export default function MasterDataManagement() {
     const textColor = useColorModeValue('secondaryGray.900', 'white');
@@ -73,6 +76,15 @@ export default function MasterDataManagement() {
                             <Tab _selected={{ color: 'white', bg: 'brand.500' }}>
                                 <Icon as={MdClass} mr='2' /> Classes & Sections
                             </Tab>
+                            <Tab _selected={{ color: 'white', bg: 'brand.500' }}>
+                                <Icon as={MdCreditCard} mr='2' /> ID Templates
+                            </Tab>
+                            <Tab _selected={{ color: 'white', bg: 'brand.500' }}>
+                                <Icon as={MdClass} mr='2' /> Admit Templates
+                            </Tab>
+                            <Tab _selected={{ color: 'white', bg: 'brand.500' }}>
+                                <Icon as={MdDescription} mr='2' /> Certificate Templates
+                            </Tab>
                         </TabList>
                         <TabPanels>
                             <TabPanel>
@@ -89,6 +101,15 @@ export default function MasterDataManagement() {
                             </TabPanel>
                             <TabPanel>
                                 <ClassesSectionsManager />
+                            </TabPanel>
+                            <TabPanel>
+                                <IdCardTemplate isMasterData />
+                            </TabPanel>
+                            <TabPanel>
+                                <AdmitCardTemplate isMasterData />
+                            </TabPanel>
+                            <TabPanel>
+                                <CertificateTemplate isMasterData />
                             </TabPanel>
                         </TabPanels>
                     </Tabs>

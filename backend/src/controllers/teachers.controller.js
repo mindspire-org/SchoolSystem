@@ -196,12 +196,6 @@ export const markMyAttendance = async (req, res, next) => {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
-    const now = new Date();
-    const hh = String(now.getHours()).padStart(2, '0');
-    const mm = String(now.getMinutes()).padStart(2, '0');
-    const checkInTime = normalized.status === 'present' || normalized.status === 'late'
-      ? `${hh}:${mm}`
-      : null;
 
     const records = await teachers.upsertAttendanceEntries({
       date,
@@ -210,7 +204,7 @@ export const markMyAttendance = async (req, res, next) => {
         {
           teacherId: self.id,
           status: normalized.status,
-          checkInTime,
+          checkInTime: null,
           checkOutTime: null,
           remarks: normalized.remarks ?? null,
         },
@@ -255,7 +249,7 @@ export const getSchedule = async (req, res, next) => {
 
 export const create = async (req, res, next) => {
   try {
-    try { await ensureAuthSchema(); } catch (_) {}
+    try { await ensureAuthSchema(); } catch (_) { }
     const payload = normalizeTeacherPayload(req.body, { partial: false });
     let credentials = null;
     // Auto-provision user account if not already linked

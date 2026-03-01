@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Box, Flex, Heading, Text, Button, IconButton, useColorModeValue, Table, Thead, Tbody, Tr, Th, Td,
     Input, InputGroup, InputLeftElement, useDisclosure, Modal, ModalOverlay, ModalContent, ModalHeader,
-    ModalCloseButton, ModalBody, ModalFooter, FormControl, FormLabel, useToast, Select, Textarea, Spinner, Image
+    ModalCloseButton, ModalBody, ModalFooter, FormControl, FormLabel, useToast, Select, Textarea, Spinner, Image, Switch
 } from '@chakra-ui/react';
 import { MdAdd, MdSearch, MdEdit, MdDelete, MdDescription } from 'react-icons/md';
 import Card from '../../../../components/card/Card';
@@ -10,12 +10,14 @@ import StatCard from '../../../../components/card/StatCard';
 import { certificateTemplateApi } from '../../../../services/moduleApis';
 import { useAuth } from '../../../../contexts/AuthContext';
 
-export default function CertificateTemplate() {
-    const { campusId } = useAuth();
+export default function CertificateTemplate({ isMasterData }) {
+    const { campusId, user } = useAuth();
     const toast = useToast();
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [templates, setTemplates] = useState([]);
+
+    const canManageGlobal = user?.role === 'superadmin' || user?.role === 'owner';
 
     const { isOpen, onOpen, onClose } = useDisclosure();
     const emptyForm = {
@@ -59,6 +61,7 @@ export default function CertificateTemplate() {
         showSerial: true,
         serialPrefix: 'CERT-',
         serialPadding: 6,
+        isShared: isMasterData || false,
     };
     const [form, setForm] = useState(emptyForm);
     const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
@@ -70,8 +73,17 @@ export default function CertificateTemplate() {
     const fetchTemplates = async () => {
         setLoading(true);
         try {
-            const data = await certificateTemplateApi.list({ campusId });
-            setTemplates(data || []);
+            const data = await certificateTemplateApi.list({ 
+                isShared: true
+            });
+            const filtered = data || [];
+            if (isMasterData) {
+                const globalOnly = filtered.filter(t => Number(t.campusId) === 0);
+                console.log('Global Certificate Templates (filtered):', globalOnly);
+                setTemplates(globalOnly);
+            } else {
+                setTemplates(filtered);
+            }
         } catch (error) {
             toast({ title: 'Error fetching templates', status: 'error' });
         } finally {
@@ -81,7 +93,10 @@ export default function CertificateTemplate() {
 
     const handleSave = async () => {
         try {
-            const payload = { ...form, campusId };
+            const payload = { 
+                ...form, 
+                campusId: form.isShared ? null : campusId 
+            };
             delete payload.id;
             if (form.id) {
                 await certificateTemplateApi.update(form.id, payload);
@@ -138,15 +153,17 @@ export default function CertificateTemplate() {
     };
 
     return (
-        <Box pt={{ base: '130px', md: '80px', xl: '80px' }}>
+        <Box pt={isMasterData ? '0px' : { base: '130px', md: '80px', xl: '80px' }}>
             <Flex mb={5} justify="space-between" align="center" gap={3} flexWrap="wrap">
                 <Box>
                     <Heading as="h3" size="lg" mb={1}>Certificate Templates</Heading>
-                    <Text color={textColorSecondary}>Design and manage certificate templates</Text>
+                    <Text color={textColorSecondary}>Design and manage certificate templates{isMasterData ? ' (Global)' : ''}</Text>
                 </Box>
-                <Button leftIcon={<MdAdd />} colorScheme="blue" onClick={() => { setForm({ ...emptyForm }); onOpen(); }}>
-                    Create Template
-                </Button>
+                {(isMasterData ? canManageGlobal : true) && (
+                    <Button leftIcon={<MdAdd />} colorScheme="blue" onClick={() => { setForm({ ...emptyForm, isShared: isMasterData || false }); onOpen(); }}>
+                        Create Template
+                    </Button>
+                )}
             </Flex>
 
             <Box mb={5}>
@@ -444,6 +461,17 @@ export default function CertificateTemplate() {
                                 </FormControl>
                             </Box>
                         </Box>
+                        <FormControl mt={4} mb={3} display='flex' alignItems='center'>
+                            <FormLabel htmlFor='isSharedCert' mb='0'>
+                                Share across all campuses?
+                            </FormLabel>
+                            <Switch
+                                id='isSharedCert'
+                                isChecked={form.isShared ?? false}
+                                onChange={(e) => setForm({ ...form, isShared: e.target.checked })}
+                                isDisabled={!canManageGlobal}
+                            />
+                        </FormControl>
                     </ModalBody>
                     <ModalFooter>
                         <Button variant="ghost" mr={3} onClick={onClose}>Cancel</Button>

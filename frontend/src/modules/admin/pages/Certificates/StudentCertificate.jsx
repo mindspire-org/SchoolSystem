@@ -313,7 +313,7 @@ export default function StudentCertificate() {
         try {
             const [studentsData, templatesData, certsData] = await Promise.all([
                 studentApi.list({ campusId }),
-                certificateTemplateApi.list({ campusId, type: 'Student' }),
+                certificateTemplateApi.list({ campusId, isShared: true, type: 'Student' }),
                 studentCertificateApi.list({ campusId })
             ]);
             setStudents(asArray(studentsData));

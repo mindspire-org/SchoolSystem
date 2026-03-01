@@ -3,6 +3,7 @@ import { IdCardTemplate, GeneratedIdCard, AdmitCardTemplate, GeneratedAdmitCard 
 import { authenticate } from '../middleware/auth.js';
 import { query } from '../config/db.js';
 import cloudinary from '../config/cloudinary.js';
+import { Op } from 'sequelize';
 
 const router = Router();
 
@@ -61,14 +62,32 @@ const createCRUD = (Model) => ({
     getAll: async (req, res) => {
         try {
             const campusId = resolveCampusId(req);
-            const where = campusId ? { campusId } : {};
-            if (req.query?.type && Model?.rawAttributes?.type) {
-                where.type = String(req.query.type);
+            let items;
+            if (campusId !== null) {
+                items = await Model.findAll({
+                    where: {
+                        [Op.or]: [
+                            { campusId: campusId },
+                            { campusId: 0 }
+                        ]
+                    }
+                });
+            } else {
+                items = await Model.findAll();
             }
-            const items = await Model.findAll({ where });
+            
+            if (req.query?.type && Model?.rawAttributes?.type) {
+                const type = String(req.query.type);
+                items = items.filter(item => item.type === type);
+            }
             res.json(items);
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error(`Error in getAll for ${Model.name || 'Model'}:`, error);
+            res.status(500).json({ 
+                error: error.message, 
+                stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+                details: error.name === 'SequelizeDatabaseError' ? error.original : undefined
+            });
         }
     },
     getOne: async (req, res) => {
@@ -87,13 +106,21 @@ const createCRUD = (Model) => ({
     create: async (req, res) => {
         try {
             const campusId = resolveCampusId(req);
-            if (!campusId) return res.status(400).json({ error: 'campusId is required' });
+            // Allow null campusId for superadmin/owner creating shared templates
+            const isShared = req.body.isShared === true || req.body.isShared === 'true' || req.body.isShared === 1;
+            const finalCampusId = isShared ? 0 : campusId;
+            
+            if (finalCampusId === null && !isShared) {
+                // If not shared and no campus resolved, it's an error for non-global creation
+                return res.status(400).json({ error: 'campusId is required' });
+            }
+            
             const payload = stripCreatePayload(req.body);
             if (Model?.rawAttributes?.logoUrl && payload.logoUrl) {
                 const folder = Model === IdCardTemplate ? 'id-card-templates' : Model === AdmitCardTemplate ? 'admit-card-templates' : 'templates';
                 payload.logoUrl = await maybeUploadLogoUrl(payload.logoUrl, folder);
             }
-            const item = await Model.create({ ...payload, campusId });
+            const item = await Model.create({ ...payload, campusId: finalCampusId });
             res.status(201).json(item);
         } catch (error) {
             res.status(500).json({ error: error.message });

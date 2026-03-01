@@ -313,7 +313,7 @@ export default function EmployeeCertificate() {
         try {
             const [employeesData, templatesData, certsData] = await Promise.all([
                 employeeApi.list({ campusId }),
-                certificateTemplateApi.list({ campusId, type: 'Employee' }),
+                certificateTemplateApi.list({ campusId, isShared: true, type: 'Employee' }),
                 employeeCertificateApi.list({ campusId })
             ]);
             setEmployees(asArray(employeesData));

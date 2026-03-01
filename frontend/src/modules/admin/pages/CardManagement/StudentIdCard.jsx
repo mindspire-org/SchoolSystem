@@ -510,7 +510,7 @@ export default function StudentIdCard() {
         try {
             const [studentsData, templatesData, cardsData] = await Promise.all([
                 studentApi.list({ campusId }),
-                idCardTemplateApi.list({ campusId }),
+                idCardTemplateApi.list({ campusId, isShared: true }),
                 generatedIdCardApi.list({ campusId, type: 'Student' })
             ]);
             setStudents(asArray(studentsData));

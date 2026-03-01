@@ -1,8 +1,11 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./frontend" }
-  ],
+  "compilerOptions": {
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["frontend/src/*"]
+    }
+  },
   "include": ["frontend/src"],
-  "exclude": ["backend", "electron", "frontend-legacy", "node_modules", "dist", "release"]
+  "exclude": ["backend", "electron", "frontend-legacy", "node_modules", "dist", "release", "frontend/src/index.js"]
 }

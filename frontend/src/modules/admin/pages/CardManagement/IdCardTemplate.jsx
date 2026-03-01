@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Box, Flex, Heading, Text, Button, IconButton, useColorModeValue, Table, Thead, Tbody, Tr, Th, Td,
     Input, InputGroup, InputLeftElement, useDisclosure, Modal, ModalOverlay, ModalContent, ModalHeader,
-    ModalCloseButton, ModalBody, ModalFooter, FormControl, FormLabel, useToast, Textarea, Select, Spinner, Image
+    ModalCloseButton, ModalBody, ModalFooter, FormControl, FormLabel, useToast, Textarea, Select, Spinner, Image, Switch
 } from '@chakra-ui/react';
 import { MdAdd, MdSearch, MdEdit, MdDelete, MdCreditCard } from 'react-icons/md';
 import Card from '../../../../components/card/Card';
@@ -10,16 +10,18 @@ import StatCard from '../../../../components/card/StatCard';
 import { idCardTemplateApi } from '../../../../services/moduleApis';
 import { useAuth } from '../../../../contexts/AuthContext';
 
-export default function IdCardTemplate() {
-    const { campusId } = useAuth();
+export default function IdCardTemplate({ isMasterData }) {
+    const { campusId, user } = useAuth();
     const toast = useToast();
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [templates, setTemplates] = useState([]);
 
     const { isOpen, onOpen, onClose } = useDisclosure();
-    const [form, setForm] = useState({ id: '', name: '', type: 'Student', layout: 'Vertical', bgColor: '#4299E1', logoUrl: '', fields: '', instructions: '' });
+    const [form, setForm] = useState({ id: '', name: '', type: 'Student', layout: 'Vertical', bgColor: '#4299E1', logoUrl: '', fields: '', instructions: '', isShared: isMasterData || false });
     const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
+
+    const canManageGlobal = user?.role === 'superadmin' || user?.role === 'owner';
 
     const getDefaultFields = (typeValue) => {
         const t = String(typeValue || '').toLowerCase();
@@ -41,8 +43,17 @@ export default function IdCardTemplate() {
     const fetchTemplates = async () => {
         setLoading(true);
         try {
-            const data = await idCardTemplateApi.list({ campusId });
-            setTemplates(data || []);
+            const data = await idCardTemplateApi.list({ 
+                isShared: true
+            });
+            const filtered = data || [];
+            if (isMasterData) {
+                const globalOnly = filtered.filter(t => Number(t.campusId) === 0);
+                console.log('Global ID Templates (filtered):', globalOnly);
+                setTemplates(globalOnly);
+            } else {
+                setTemplates(filtered);
+            }
         } catch (error) {
             const msg =
                 error?.response?.data?.error ||
@@ -57,7 +68,11 @@ export default function IdCardTemplate() {
 
     const handleSave = async () => {
         try {
-            const payload = { ...form, campusId, fields: getDefaultFields(form.type) };
+            const payload = { 
+                ...form, 
+                campusId: form.isShared ? null : campusId, 
+                fields: getDefaultFields(form.type) 
+            };
             delete payload.id;
             if (form.id) {
                 await idCardTemplateApi.update(form.id, payload);
@@ -110,15 +125,17 @@ export default function IdCardTemplate() {
     };
 
     return (
-        <Box pt={{ base: '130px', md: '80px', xl: '80px' }}>
+        <Box pt={isMasterData ? '0px' : { base: '130px', md: '80px', xl: '80px' }}>
             <Flex mb={5} justify="space-between" align="center" gap={3} flexWrap="wrap">
                 <Box>
                     <Heading as="h3" size="lg" mb={1}>ID Card Templates</Heading>
-                    <Text color={textColorSecondary}>Design and manage ID card templates</Text>
+                    <Text color={textColorSecondary}>Design and manage ID card templates{isMasterData ? ' (Global)' : ''}</Text>
                 </Box>
-                <Button leftIcon={<MdAdd />} colorScheme="blue" onClick={() => { setForm({ id: '', name: '', type: 'Student', layout: 'Vertical', bgColor: '#4299E1', logoUrl: '', fields: getDefaultFields('Student'), instructions: '' }); onOpen(); }}>
-                    Create Template
-                </Button>
+                {(isMasterData ? canManageGlobal : true) && (
+                    <Button leftIcon={<MdAdd />} colorScheme="blue" onClick={() => { setForm({ id: '', name: '', type: 'Student', layout: 'Vertical', bgColor: '#4299E1', logoUrl: '', fields: getDefaultFields('Student'), instructions: '', isShared: isMasterData || false }); onOpen(); }}>
+                        Create Template
+                    </Button>
+                )}
             </Flex>
 
             <Box mb={5}>
@@ -248,9 +265,16 @@ export default function IdCardTemplate() {
                                     : getDefaultFields('Student')}
                             />
                         </FormControl>
-                        <FormControl mb={3}>
-                            <FormLabel>Instructions</FormLabel>
-                            <Textarea value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} rows={3} />
+                        <FormControl mb={3} display='flex' alignItems='center'>
+                            <FormLabel htmlFor='isSharedCard' mb='0'>
+                                Share across all campuses?
+                            </FormLabel>
+                            <Switch
+                                id='isSharedCard'
+                                isChecked={form.isShared ?? false}
+                                onChange={(e) => setForm({ ...form, isShared: e.target.checked })}
+                                isDisabled={!canManageGlobal}
+                            />
                         </FormControl>
                     </ModalBody>
                     <ModalFooter>

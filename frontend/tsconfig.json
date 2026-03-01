@@ -8,6 +8,7 @@
     "strict": false,
     "skipLibCheck": true,
     "noEmit": true,
+    "composite": false,
     "allowJs": true,
     "checkJs": false,
     "resolveJsonModule": true,

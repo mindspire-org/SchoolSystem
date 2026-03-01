@@ -516,7 +516,7 @@ export default function EmployeeIdCard() {
             }
 
             try {
-                templatesData = await idCardTemplateApi.list({ campusId });
+                templatesData = await idCardTemplateApi.list({ campusId, isShared: true });
             } catch (e) {
                 errors.push(`templates -> ${formatErr(e)}`);
             }

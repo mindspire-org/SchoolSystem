@@ -25,9 +25,10 @@ import {
   Spinner,
   useToast,
   useBreakpointValue,
+  Tooltip,
 } from '@chakra-ui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
-import { MdCalendarToday, MdCheckCircle, MdCancel, MdAccessTime } from 'react-icons/md';
+import { MdCalendarToday, MdCheckCircle, MdCancel, MdAccessTime, MdRefresh, MdLogin, MdLogout, MdEventBusy, MdPerson } from 'react-icons/md';
 import Card from 'components/card/Card.js';
 import MiniStatistics from 'components/card/MiniStatistics';
 import IconBox from 'components/icons/IconBox';
@@ -179,6 +180,31 @@ const TeacherAttendance = () => {
   useEffect(() => {
     fetchWeeklyAttendance();
   }, [fetchWeeklyAttendance]);
+
+  const handleQuickAction = (teacherId, status) => {
+    const now = new Date();
+    const timeStr = now.toTimeString().slice(0, 5);
+    
+    if (status === 'present') {
+      updateAttendanceEntry(teacherId, { status: 'present', checkInTime: timeStr });
+    } else if (status === 'absent') {
+      updateAttendanceEntry(teacherId, { status: 'absent', checkInTime: '', checkOutTime: '' });
+    } else if (status === 'late') {
+      updateAttendanceEntry(teacherId, { status: 'late', checkInTime: timeStr });
+    } else if (status === 'leave') {
+      updateAttendanceEntry(teacherId, { status: 'leave', checkInTime: '', checkOutTime: '', remarks: 'Leave' });
+    }
+  };
+
+  const handleCheckIn = (teacherId) => {
+    const timeStr = new Date().toTimeString().slice(0, 5);
+    updateAttendanceEntry(teacherId, { status: 'present', checkInTime: timeStr });
+  };
+
+  const handleCheckOut = (teacherId) => {
+    const timeStr = new Date().toTimeString().slice(0, 5);
+    updateAttendanceEntry(teacherId, { checkOutTime: timeStr });
+  };
 
   // Handle attendance status change
   const updateAttendanceEntry = (teacherId, changes) => {
@@ -470,15 +496,16 @@ const TeacherAttendance = () => {
                 <Th>Teacher</Th>
                 <Th>ID</Th>
                 <Th>Department</Th>
-                <Th width="200px">Status</Th>
-                <Th>Time In</Th>
-                <Th>Time Out</Th>
+                <Th textAlign="center">TODAY'S STATUS</Th>
+                <Th textAlign="center">CHECK-IN</Th>
+                <Th textAlign="center">CHECK-OUT</Th>
+                <Th textAlign="right">ACTIONS</Th>
               </Tr>
             </Thead>
             <Tbody>
               {loading ? (
                 <Tr>
-                  <Td colSpan={6}>
+                  <Td colSpan={7}>
                     <Flex align="center" justify="center" py={10}>
                       <Spinner size="sm" mr={3} />
                       <Text>Loading attendance...</Text>
@@ -487,7 +514,7 @@ const TeacherAttendance = () => {
                 </Tr>
               ) : teacherRows.length === 0 ? (
                 <Tr>
-                  <Td colSpan={6}>
+                  <Td colSpan={7}>
                     <Text textAlign="center" py={6} color={textColorSecondary}>
                       No teachers found for the selected date.
                     </Text>
@@ -497,43 +524,138 @@ const TeacherAttendance = () => {
                 teacherRows.map((teacher) => {
                   const attendanceEntry = attendanceMap[teacher.teacherId] || defaultEntry;
                   const attendanceStatus = attendanceEntry.status || 'absent';
+                  const isMarked = attendanceStatus !== 'absent';
+                  
                   return (
                     <Tr key={teacher.teacherId}>
                       <Td>
                         <Flex align="center">
                           <Avatar src={teacher.photo} name={teacher.name} size="sm" mr={3} />
-                          <Text fontWeight="medium">{teacher.name}</Text>
+                          <Box>
+                            <Text fontWeight="bold" fontSize="sm">{teacher.name}</Text>
+                            <Text fontSize="xs" color="gray.500">{teacher.department}</Text>
+                          </Box>
                         </Flex>
                       </Td>
-                      <Td>{teacher.employeeId}</Td>
-                      <Td>{teacher.department}</Td>
-                      <Td>
-                        <Select
-                          value={attendanceStatus}
-                          onChange={(e) => handleStatusChange(teacher.teacherId, e.target.value)}
-                          width="full"
+                      <Td fontSize="sm">{teacher.employeeId}</Td>
+                      <Td fontSize="sm">{teacher.department}</Td>
+                      <Td textAlign="center">
+                        <Badge 
+                          variant="subtle" 
+                          colorScheme={
+                            attendanceStatus === 'present' ? 'green' : 
+                            attendanceStatus === 'late' ? 'orange' : 
+                            attendanceStatus === 'leave' ? 'purple' : 'gray'
+                          }
+                          px={2}
+                          py={1}
+                          borderRadius="md"
+                          bg={
+                            attendanceStatus === 'present' ? 'green.50' : 
+                            attendanceStatus === 'late' ? 'orange.50' : 
+                            attendanceStatus === 'leave' ? 'purple.50' : 'gray.50'
+                          }
+                          color={
+                            attendanceStatus === 'present' ? 'green.600' : 
+                            attendanceStatus === 'late' ? 'orange.600' : 
+                            attendanceStatus === 'leave' ? 'purple.600' : 'gray.600'
+                          }
+                          fontWeight="800"
                         >
-                          <option value="present">Present</option>
-                          <option value="absent">Absent</option>
-                          <option value="late">Late</option>
-                          <option value="leave">Leave</option>
-                        </Select>
+                          {attendanceStatus === 'absent' ? 'NOT MARKED' : attendanceStatus.toUpperCase()}
+                        </Badge>
+                      </Td>
+                      <Td textAlign="center">
+                        {attendanceEntry.checkInTime ? (
+                          <Text fontSize="sm" fontWeight="500" color="secondaryGray.600">{attendanceEntry.checkInTime}</Text>
+                        ) : (
+                          <Button 
+                            size="sm" 
+                            bg="#01B574"
+                            _hover={{ bg: "#019a62" }}
+                            color="white"
+                            leftIcon={<Icon as={MdAccessTime} />} 
+                            onClick={() => handleCheckIn(teacher.teacherId)}
+                            isDisabled={attendanceStatus === 'leave'}
+                            borderRadius="12px"
+                            fontSize="xs"
+                          >
+                            Check In
+                          </Button>
+                        )}
+                      </Td>
+                      <Td textAlign="center">
+                        {attendanceEntry.checkOutTime ? (
+                          <Text fontSize="sm" fontWeight="500" color="secondaryGray.600">{attendanceEntry.checkOutTime}</Text>
+                        ) : (
+                          <Button 
+                            size="sm" 
+                            bg="#4318FF"
+                            _hover={{ bg: "#3311cc" }}
+                            color="white"
+                            leftIcon={<Icon as={MdAccessTime} />} 
+                            onClick={() => handleCheckOut(teacher.teacherId)}
+                            isDisabled={!attendanceEntry.checkInTime || attendanceStatus === 'leave'}
+                            borderRadius="12px"
+                            fontSize="xs"
+                          >
+                            Check Out
+                          </Button>
+                        )}
                       </Td>
                       <Td>
-                        <Input
-                          type="time"
-                          value={attendanceEntry.checkInTime || ''}
-                          onChange={(e) => handleTimeChange(teacher.teacherId, 'checkInTime', e.target.value)}
-                          isDisabled={attendanceStatus === 'absent' || attendanceStatus === 'leave'}
-                        />
-                      </Td>
-                      <Td>
-                        <Input
-                          type="time"
-                          value={attendanceEntry.checkOutTime || ''}
-                          onChange={(e) => handleTimeChange(teacher.teacherId, 'checkOutTime', e.target.value)}
-                          isDisabled={attendanceStatus === 'absent' || attendanceStatus === 'leave'}
-                        />
+                        <HStack spacing={1} justify="flex-end">
+                          <Tooltip label="Mark Present">
+                            <IconButton 
+                              size="sm" 
+                              icon={<MdCheckCircle />} 
+                              bg={attendanceStatus === 'present' ? '#01B574' : '#01B574'} 
+                              color="white"
+                              _hover={{ bg: "#019a62" }}
+                              onClick={() => handleQuickAction(teacher.teacherId, 'present')}
+                            />
+                          </Tooltip>
+                          <Tooltip label="Mark Absent">
+                            <IconButton 
+                              size="sm" 
+                              icon={<MdCancel />} 
+                              bg="#EE5D50"
+                              color="white"
+                              _hover={{ bg: "#d44b40" }}
+                              onClick={() => handleQuickAction(teacher.teacherId, 'absent')}
+                            />
+                          </Tooltip>
+                          <Tooltip label="Mark Late">
+                            <IconButton 
+                              size="sm" 
+                              icon={<MdAccessTime />} 
+                              bg="#FFB547"
+                              color="white"
+                              _hover={{ bg: "#e6a33f" }}
+                              onClick={() => handleQuickAction(teacher.teacherId, 'late')}
+                            />
+                          </Tooltip>
+                          <Tooltip label="Mark Leave">
+                            <IconButton 
+                              size="sm" 
+                              icon={<MdCalendarToday />} 
+                              bg="#FFB547"
+                              color="white"
+                              _hover={{ bg: "#e6a33f" }}
+                              onClick={() => handleQuickAction(teacher.teacherId, 'leave')}
+                            />
+                          </Tooltip>
+                          <Tooltip label="View Profile">
+                            <IconButton 
+                              size="sm" 
+                              icon={<MdPerson />} 
+                              bg="#4318FF"
+                              color="white"
+                              _hover={{ bg: "#3311cc" }}
+                              onClick={() => {}} 
+                            />
+                          </Tooltip>
+                        </HStack>
                       </Td>
                     </Tr>
                   );

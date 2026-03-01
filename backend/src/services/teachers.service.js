@@ -1,4 +1,5 @@
 import { query } from '../config/db.js';
+import * as settingsService from './settings.service.js';
 
 const getTeacherCampusId = async (teacherId) => {
   const { rows } = await query('SELECT campus_id FROM teachers WHERE id = $1', [teacherId]);
@@ -687,14 +688,44 @@ export const getAttendanceByDate = async ({ date, teacherId, campusId }) => {
 
 export const upsertAttendanceEntries = async ({ date, entries = [], recordedBy }) => {
   if (!entries.length) return await getAttendanceByDate({ date });
+
+  let schoolStartTime = null;
+  try {
+    const profileSetting = await settingsService.getByKey('school.profile');
+    if (profileSetting && profileSetting.value) {
+      const profile = JSON.parse(profileSetting.value);
+      schoolStartTime = profile.schoolStartTime || null;
+    }
+  } catch (e) {
+    console.error('Error fetching school start time for teacher attendance:', e);
+  }
+
   const columns = ['teacher_id', 'attendance_date', 'status', 'check_in_time', 'check_out_time', 'remarks', 'recorded_by'];
   const values = [];
   const tuples = entries.map((entry, idx) => {
+    let status = entry.status;
+    let checkInTime = entry.checkInTime ?? null;
+
+    // Auto-late logic
+    if (status === 'present' && schoolStartTime) {
+      const now = new Date();
+      const [startH, startM] = schoolStartTime.split(':').map(Number);
+      const currentH = now.getHours();
+      const currentM = now.getMinutes();
+      if (currentH > startH || (currentH === startH && currentM > startM)) {
+        status = 'late';
+        // Update check-in time if it was just being set to "present"
+        if (!checkInTime) {
+          checkInTime = `${String(currentH).padStart(2, '0')}:${String(currentM).padStart(2, '0')}`;
+        }
+      }
+    }
+
     values.push(
       entry.teacherId,
       date,
-      entry.status,
-      entry.checkInTime ?? null,
+      status,
+      checkInTime,
       entry.checkOutTime ?? null,
       entry.remarks ?? null,
       recordedBy ?? null

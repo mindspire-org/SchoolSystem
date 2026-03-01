@@ -59,6 +59,7 @@ import AttendanceMonitor from './modules/admin/pages/Attendance/AttendanceMonito
 import AdminDailyAttendance from './modules/admin/pages/Attendance/AdminDailyAttendance';
 import AdminQRAttendance from './modules/admin/pages/Attendance/QRCodeAttendance';
 import QRAttendanceLogs from './modules/admin/pages/Attendance/QRAttendanceLogs';
+import UploadMarks from './modules/teachers/exams/UploadMarks';
 
 // Student Module Components
 import StudentListTest from './modules/students/StudentListTest';
@@ -341,6 +342,12 @@ export const getSMSRoutes = () => {
           layout: '/admin',
           path: '/academics/exams',
           component: lazy(() => import('./modules/admin/pages/academics/Exams')),
+        },
+        {
+          name: 'Upload Marks',
+          layout: '/admin',
+          path: '/academics/upload-marks',
+          component: <UploadMarks />,
         },
         {
           name: 'Results',

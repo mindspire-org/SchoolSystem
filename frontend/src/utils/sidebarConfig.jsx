@@ -216,7 +216,7 @@ export const requiresAuth = (path) => {
 
 // Helper function to get allowed roles for a path
 export const getAllowedRoles = (path) => {
-  if (path.startsWith('/admin/')) return ['admin','owner'];
+  if (path.startsWith('/admin/')) return ['admin','owner','superadmin'];
   if (path.startsWith('/teacher/')) return ['teacher'];
   if (path.startsWith('/student/')) return ['student'];
   if (path.startsWith('/driver/')) return ['driver'];

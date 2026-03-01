@@ -10,7 +10,7 @@ export default (sequelize) => {
         logoUrl: { type: DataTypes.TEXT },
         fields: { type: DataTypes.TEXT },
         instructions: { type: DataTypes.TEXT },
-        campusId: { type: DataTypes.INTEGER, allowNull: false },
+        campusId: { type: DataTypes.INTEGER, allowNull: true },
     }, { tableName: 'id_card_templates', timestamps: true });
 
     const GeneratedIdCard = sequelize.define('GeneratedIdCard', {
@@ -34,7 +34,7 @@ export default (sequelize) => {
         logoUrl: { type: DataTypes.TEXT },
         fields: { type: DataTypes.TEXT },
         instructions: { type: DataTypes.TEXT },
-        campusId: { type: DataTypes.INTEGER, allowNull: false },
+        campusId: { type: DataTypes.INTEGER, allowNull: true },
     }, { tableName: 'admit_card_templates', timestamps: true });
 
     const GeneratedAdmitCard = sequelize.define('GeneratedAdmitCard', {

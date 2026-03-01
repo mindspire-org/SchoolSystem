@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Box, Flex, Heading, Text, Button, IconButton, useColorModeValue, Table, Thead, Tbody, Tr, Th, Td,
     Input, InputGroup, InputLeftElement, useDisclosure, Modal, ModalOverlay, ModalContent, ModalHeader,
-    ModalCloseButton, ModalBody, ModalFooter, FormControl, FormLabel, useToast, Textarea, Select, Spinner
+    ModalCloseButton, ModalBody, ModalFooter, FormControl, FormLabel, useToast, Textarea, Select, Spinner, Switch
 } from '@chakra-ui/react';
 import { MdAdd, MdSearch, MdEdit, MdDelete, MdCreditCard } from 'react-icons/md';
 import Card from '../../../../components/card/Card';
@@ -10,15 +10,17 @@ import StatCard from '../../../../components/card/StatCard';
 import { admitCardTemplateApi } from '../../../../services/moduleApis';
 import { useAuth } from '../../../../contexts/AuthContext';
 
-export default function AdmitCardTemplate() {
-    const { campusId } = useAuth();
+export default function AdmitCardTemplate({ isMasterData }) {
+    const { campusId, user } = useAuth();
     const toast = useToast();
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [templates, setTemplates] = useState([]);
 
+    const canManageGlobal = user?.role === 'superadmin' || user?.role === 'owner';
+
     const { isOpen, onOpen, onClose } = useDisclosure();
-    const [form, setForm] = useState({ id: '', name: '', examName: '', layout: 'Vertical', bgColor: '#ffffff', logoUrl: '', fields: '', instructions: '' });
+    const [form, setForm] = useState({ id: '', name: '', examName: '', layout: 'Vertical', bgColor: '#ffffff', logoUrl: '', fields: '', instructions: '', isShared: isMasterData || false });
     const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
 
     useEffect(() => {
@@ -28,8 +30,19 @@ export default function AdmitCardTemplate() {
     const fetchTemplates = async () => {
         setLoading(true);
         try {
-            const data = await admitCardTemplateApi.list({ campusId });
-            setTemplates(data || []);
+            console.log('Fetching Admit Templates...', { isMasterData });
+            const data = await admitCardTemplateApi.list({ 
+                isShared: true
+            });
+            console.log('Admit Templates Response:', data);
+            const filtered = data || [];
+            if (isMasterData) {
+                const globalOnly = filtered.filter(t => Number(t.campusId) === 0);
+                console.log('Global Admit Templates (filtered):', globalOnly);
+                setTemplates(globalOnly);
+            } else {
+                setTemplates(filtered);
+            }
         } catch (error) {
             const msg =
                 error?.response?.data?.error ||
@@ -44,11 +57,16 @@ export default function AdmitCardTemplate() {
 
     const handleSave = async () => {
         try {
+            const payload = { 
+                ...form, 
+                campusId: form.isShared ? null : campusId 
+            };
+            delete payload.id;
             if (form.id) {
-                await admitCardTemplateApi.update(form.id, { ...form, campusId });
+                await admitCardTemplateApi.update(form.id, payload);
                 toast({ title: 'Template updated', status: 'success' });
             } else {
-                await admitCardTemplateApi.create({ ...form, campusId });
+                await admitCardTemplateApi.create(payload);
                 toast({ title: 'Template created', status: 'success' });
             }
             fetchTemplates();
@@ -81,15 +99,17 @@ export default function AdmitCardTemplate() {
     };
 
     return (
-        <Box pt={{ base: '130px', md: '80px', xl: '80px' }}>
+        <Box pt={isMasterData ? '0px' : { base: '130px', md: '80px', xl: '80px' }}>
             <Flex mb={5} justify="space-between" align="center" gap={3} flexWrap="wrap">
                 <Box>
                     <Heading as="h3" size="lg" mb={1}>Admit Card Templates</Heading>
-                    <Text color={textColorSecondary}>Design exam admit card templates</Text>
+                    <Text color={textColorSecondary}>Design exam admit card templates{isMasterData ? ' (Global)' : ''}</Text>
                 </Box>
-                <Button leftIcon={<MdAdd />} colorScheme="blue" onClick={() => { setForm({ id: '', name: '', examName: '', layout: 'Vertical', bgColor: '#ffffff', logoUrl: '', fields: '', instructions: '' }); onOpen(); }}>
-                    Create Template
-                </Button>
+                {(isMasterData ? canManageGlobal : true) && (
+                    <Button leftIcon={<MdAdd />} colorScheme="blue" onClick={() => { setForm({ id: '', name: '', examName: '', layout: 'Vertical', bgColor: '#ffffff', logoUrl: '', fields: '', instructions: '', isShared: isMasterData || false }); onOpen(); }}>
+                        Create Template
+                    </Button>
+                )}
             </Flex>
 
             <Box mb={5}>
@@ -175,6 +195,17 @@ export default function AdmitCardTemplate() {
                         <FormControl mb={3}>
                             <FormLabel>Instructions</FormLabel>
                             <Textarea value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} rows={3} />
+                        </FormControl>
+                        <FormControl mb={3} display='flex' alignItems='center'>
+                            <FormLabel htmlFor='isSharedAdmit' mb='0'>
+                                Share across all campuses?
+                            </FormLabel>
+                            <Switch
+                                id='isSharedAdmit'
+                                isChecked={form.isShared ?? false}
+                                onChange={(e) => setForm({ ...form, isShared: e.target.checked })}
+                                isDisabled={!canManageGlobal}
+                            />
                         </FormControl>
                     </ModalBody>
                     <ModalFooter>
