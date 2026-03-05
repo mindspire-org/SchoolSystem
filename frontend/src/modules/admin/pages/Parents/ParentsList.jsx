@@ -29,6 +29,7 @@ import {
   Center,
   VStack,
   Divider,
+  Portal,
 } from '@chakra-ui/react';
 import { SearchIcon } from '@chakra-ui/icons';
 import { MdPeople, MdChevronRight, MdAdd, MdEdit, MdDelete, MdEmail } from 'react-icons/md';
@@ -183,55 +184,57 @@ export default function ParentsList() {
         </Box>
       </Card>
 
-      <Drawer isOpen={drawerOpen} placement="right" onClose={() => setDrawerOpen(false)} size="md">
-        <DrawerOverlay />
-        <DrawerContent>
-          <DrawerCloseButton />
-          <DrawerHeader borderBottomWidth="1px">Parent Details</DrawerHeader>
-          <DrawerBody py={6}>
-            {selected && (
-              <Box>
-                <VStack align="stretch" spacing={6}>
-                  <Box>
-                    <HStack mb={2}>
-                      <Badge colorScheme="brand" fontSize="md" px={2}>{selected.familyNumber}</Badge>
-                      <Text fontWeight="bold" color="gray.500">Family Number</Text>
-                    </HStack>
-                    <Heading size="md" mb={1}>{selected.primaryName || '—'}</Heading>
-                    <Text color="gray.600">{selected.whatsappPhone || 'No Phone'} · {selected.email || 'No Email'}</Text>
-                    <Text mt={2} fontSize="sm" color="gray.500">Address: {selected.address || '—'}</Text>
-                  </Box>
+      <Portal>
+        <Drawer isOpen={drawerOpen} placement="right" onClose={() => setDrawerOpen(false)} size="md">
+          <DrawerOverlay />
+          <DrawerContent>
+            <DrawerCloseButton />
+            <DrawerHeader borderBottomWidth="1px">Parent Details</DrawerHeader>
+            <DrawerBody py={6}>
+              {selected && (
+                <Box>
+                  <VStack align="stretch" spacing={6}>
+                    <Box>
+                      <HStack mb={2}>
+                        <Badge colorScheme="brand" fontSize="md" px={2}>{selected.familyNumber}</Badge>
+                        <Text fontWeight="bold" color="gray.500">Family Number</Text>
+                      </HStack>
+                      <Heading size="md" mb={1}>{selected.primaryName || '—'}</Heading>
+                      <Text color="gray.600">{selected.whatsappPhone || 'No Phone'} · {selected.email || 'No Email'}</Text>
+                      <Text mt={2} fontSize="sm" color="gray.500">Address: {selected.address || '—'}</Text>
+                    </Box>
 
-                  <Divider />
+                    <Divider />
 
-                  <Box>
-                    <Heading size="sm" mb={4} display="flex" alignItems="center">
-                      <Icon as={MdPeople} mr={2} /> Children
-                    </Heading>
-                    {selected.children && selected.children.length > 0 ? (
-                      <VStack align="stretch" spacing={3}>
-                        {selected.children.map((c) => (
-                          <Flex key={c.id} align="center" justify="space-between" p={3} borderRadius="lg" border="1px solid" borderColor="gray.100" _hover={{ bg: 'gray.50' }}>
-                            <Box>
-                              <Text fontWeight="600">{c.name}</Text>
-                              <Text fontSize="xs" color="gray.500">{c.class}-{c.section} · Roll: {c.rollNumber || '—'}</Text>
-                            </Box>
-                            <Button size="xs" variant="ghost" colorScheme="brand" rightIcon={<Icon as={MdChevronRight} />}
-                              onClick={() => navigate(`/admin/students/profile/${c.id}`)}
-                            >View Student</Button>
-                          </Flex>
-                        ))}
-                      </VStack>
-                    ) : (
-                      <Text color="gray.500" fontStyle="italic">No children linked to this parent.</Text>
-                    )}
-                  </Box>
-                </VStack>
-              </Box>
-            )}
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
+                    <Box>
+                      <Heading size="sm" mb={4} display="flex" alignItems="center">
+                        <Icon as={MdPeople} mr={2} /> Children
+                      </Heading>
+                      {selected.children && selected.children.length > 0 ? (
+                        <VStack align="stretch" spacing={3}>
+                          {selected.children.map((c) => (
+                            <Flex key={c.id} align="center" justify="space-between" p={3} borderRadius="lg" border="1px solid" borderColor="gray.100" _hover={{ bg: 'gray.50' }}>
+                              <Box>
+                                <Text fontWeight="600">{c.name}</Text>
+                                <Text fontSize="xs" color="gray.500">{c.class}-{c.section} · Roll: {c.rollNumber || '—'}</Text>
+                              </Box>
+                              <Button size="xs" variant="ghost" colorScheme="brand" rightIcon={<Icon as={MdChevronRight} />}
+                                onClick={() => navigate(`/admin/students/profile/${c.id}`)}
+                              >View Student</Button>
+                            </Flex>
+                          ))}
+                        </VStack>
+                      ) : (
+                        <Text color="gray.500" fontStyle="italic">No children linked to this parent.</Text>
+                      )}
+                    </Box>
+                  </VStack>
+                </Box>
+              )}
+            </DrawerBody>
+          </DrawerContent>
+        </Drawer>
+      </Portal>
     </Box>
   );
 }
