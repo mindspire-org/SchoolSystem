@@ -78,7 +78,7 @@ export const getById = async (req, res, next) => {
 
 export const create = async (req, res, next) => {
   try {
-    try { await ensureAuthSchema(); } catch (_) {}
+    try { await ensureAuthSchema(); } catch (_) { }
     await ensureStudentExtendedColumns();
     await ensureParentsSchema();
     const payload = { ...req.body };
@@ -398,9 +398,12 @@ export const changeMyPassword = async (req, res, next) => {
       return res.status(400).json({ message: 'New password must be at least 6 characters' });
     }
 
-    const full = req.user?.email
-      ? await authSvc.findUserByEmail(req.user.email)
-      : null;
+    // Look up the full user record (with password_hash) by user ID to support username-only accounts
+    const { rows } = await import('../config/db.js').then(m => m.query(
+      'SELECT id, password_hash FROM users WHERE id = $1',
+      [req.user.id]
+    ));
+    const full = rows[0];
     if (!full) return res.status(404).json({ message: 'User not found' });
     const ok = await bcrypt.compare(String(currentPassword), full.password_hash || '');
     if (!ok) return res.status(401).json({ message: 'Invalid current password' });
@@ -413,6 +416,7 @@ export const changeMyPassword = async (req, res, next) => {
     next(e);
   }
 };
+
 
 export const getDashboardStats = async (req, res, next) => {
   try {

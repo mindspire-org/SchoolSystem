@@ -44,6 +44,7 @@ import LeaveHistory from './modules/teachers/leaves/LeaveHistory';
 import MonthlyPayslip from './modules/teachers/salary/MonthlyPayslip';
 import SalaryHistory from './modules/teachers/salary/History';
 import Password from './modules/teachers/settings/Password';
+import Profile from './modules/teachers/settings/Profile';
 import SMSLogin from './modules/authentication/Login';
 
 const teacherRoutes = [
@@ -379,7 +380,7 @@ const teacherRoutes = [
         layout: '/teacher',
         path: '/settings/profile',
         icon: <Icon as={MdSettings} width="16px" height="16px" color="inherit" />,
-        component: <TeacherModulePlaceholder title='Profile' subtitle='Coming soon' />,
+        component: <Profile />,
       },
       {
         name: 'Password',

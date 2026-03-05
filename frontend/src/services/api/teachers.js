@@ -26,8 +26,12 @@ export const updatePerformanceReview = (id, data) => http.patch(`/teachers/perfo
 export const listSubjects = (params) => http.get('/teachers/subjects', { params });
 export const listSubjectsByClass = (params) => http.get('/teachers/subjects/by-class', { params });
 export const createSubject = (data) => http.post('/teachers/subjects', data);
+export const updateSubject = (id, data) => http.patch(`/teachers/subjects/${id}`, data);
 export const listSubjectAssignments = (params) => http.get('/teachers/subjects/assignments', { params });
 export const assignSubject = (data) => http.post('/teachers/subjects/assignments', data);
 export const updateSubjectAssignment = (id, data) => http.patch(`/teachers/subjects/assignments/${id}`, data);
 export const deleteSubjectAssignment = (id) => http.delete(`/teachers/subjects/assignments/${id}`);
+export const backfillSubjectAssignments = () => http.post('/teachers/subjects/backfill');
 export const getDashboardStats = (id) => http.get(`/teachers/${id}/dashboard-stats`);
+export const changeMyPassword = (data) => http.post('/teachers/me/change-password', data);
+export const updateMe = (data) => http.put('/teachers/me', data);

@@ -6,3 +6,4 @@ export const create = (data) => http.post('/parents', data);
 export const update = (id, data) => http.put(`/parents/${id}`, data);
 export const inform = (id, data) => http.post(`/parents/${id}/inform`, data);
 export const remove = (id) => http.delete(`/parents/${id}`);
+export const messages = (id, params) => http.get(`/parents/${id}/messages`, { params });

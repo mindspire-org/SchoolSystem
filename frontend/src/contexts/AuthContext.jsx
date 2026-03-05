@@ -272,6 +272,14 @@ export const AuthProvider = ({ children }) => {
       secondary.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
       secondary.removeItem(STORAGE_KEYS.USER_DATA);
 
+      // Automatically set the selected campus to the user's assigned campus upon login
+      if (userData.campusId || userData.campus_id) {
+        const cid = String(userData.campusId || userData.campus_id);
+        setSelectedCampusId(cid);
+        localStorage.setItem(STORAGE_KEYS.SELECTED_CAMPUS_ID, cid);
+        console.log('AuthContext: Selected campus set to', cid);
+      }
+
       setUser(userData);
       setIsAuthenticated(true);
 
@@ -312,7 +320,7 @@ export const AuthProvider = ({ children }) => {
     clearError,
     moduleAccess,
     refreshModuleAccess,
-    campusId: selectedCampusId || user?.campusId || null,
+    campusId: selectedCampusId || user?.campusId || user?.campus_id || null,
     setCampusId,
   };
 

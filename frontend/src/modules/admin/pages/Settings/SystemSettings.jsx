@@ -4,6 +4,7 @@ import { MdSettings, MdFileDownload, MdSave, MdRefresh } from 'react-icons/md';
 import Card from '../../../../components/card/Card';
 import StatCard from '../../../../components/card/StatCard';
 import * as settingsApi from '../../../../services/api/settings';
+import { http } from '../../../../services/api';
 
 export default function SystemSettings() {
   const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
@@ -13,6 +14,7 @@ export default function SystemSettings() {
   const [schoolStartTime, setSchoolStartTime] = useState('08:00');
   const [loading, setLoading] = useState(false);
   const toast = useToast();
+  
 
   const loadSettings = async () => {
     setLoading(true);
@@ -24,6 +26,7 @@ export default function SystemSettings() {
         setLanguage(profile.language || 'en');
         setSchoolStartTime(profile.schoolStartTime || '08:00');
       }
+      
     } catch (error) {
       toast({
         title: 'Error loading settings',
@@ -49,6 +52,7 @@ export default function SystemSettings() {
         language,
         schoolStartTime,
       });
+      
       toast({
         title: 'Settings saved',
         status: 'success',
@@ -115,6 +119,7 @@ export default function SystemSettings() {
             </FormControl>
           </Card>
         </GridItem>
+        
       </Grid>
     </Box>
   );

@@ -359,15 +359,35 @@ export const updateScheduleSlot = async (req, res, next) => {
 
 export const getMe = async (req, res, next) => {
   try {
-    if (req.user?.role !== 'teacher') {
-      return res.status(403).json({ message: 'Forbidden' });
-    }
     const self = await teachers.getByUserId(req.user.id);
     if (!self) return res.status(404).json({ message: 'Teacher profile not found' });
     return res.json(self);
   } catch (e) {
     next(e);
   }
+};
+
+export const updateMe = async (req, res, next) => {
+  try {
+    const self = await teachers.getByUserId(req.user.id);
+    if (!self) return res.status(404).json({ message: 'Teacher profile not found' });
+    const allowed = {
+      name: req.body?.name,
+      phone: req.body?.phone,
+      gender: req.body?.gender,
+      designation: req.body?.designation,
+      department: req.body?.department,
+      address1: req.body?.address1,
+      address2: req.body?.address2,
+      city: req.body?.city,
+      state: req.body?.state,
+      postalCode: req.body?.postalCode,
+      avatar: req.body?.avatar,
+    };
+    const updated = await teachers.updateById(self.id, allowed);
+    if (!updated) return res.status(404).json({ message: 'Teacher not found' });
+    return res.json(updated);
+  } catch (e) { next(e); }
 };
 
 export const deleteScheduleSlot = async (req, res, next) => {
@@ -727,6 +747,47 @@ export const listStudentsBySubject = async (req, res, next) => {
       subject: req.query.subject,
     });
     return res.json({ rows: data });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const backfillSubjectAssignments = async (req, res, next) => {
+  try {
+    const result = await teachers.backfillSubjectAssignments({ campusId: req.user?.campusId });
+    return res.json({ success: true, ...result });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const changeMyPassword = async (req, res, next) => {
+  try {
+    if (req.user?.role !== 'teacher') {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'currentPassword and newPassword are required' });
+    }
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    }
+
+    // Find the authenticated user's record to verify current password
+    const userRecord = req.user?.email
+      ? await authSvc.findUserByEmail(req.user.email)
+      : (req.user?.id ? await authSvc.findUserById(req.user.id) : null);
+    if (!userRecord) return res.status(404).json({ message: 'User not found' });
+
+    const ok = await bcrypt.compare(String(currentPassword), userRecord.password_hash || '');
+    if (!ok) return res.status(401).json({ message: 'Invalid current password' });
+
+    const passwordHash = await bcrypt.hash(String(newPassword), 10);
+    await authSvc.updateUser(req.user.id, { passwordHash });
+
+    return res.json({ success: true });
   } catch (e) {
     next(e);
   }

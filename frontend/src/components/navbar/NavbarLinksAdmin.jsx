@@ -5,7 +5,6 @@ import {
   Flex,
   Icon,
   Image,
-  Link,
   Menu,
   MenuButton,
   MenuItem,
@@ -23,13 +22,13 @@ import PropTypes from 'prop-types';
 import React, { useEffect, useState } from 'react';
 // Assets
 import navImage from '../../assets/img/layout/Navbar.png';
-import { MdNotificationsNone, MdInfoOutline } from 'react-icons/md';
 import { IoMdMoon, IoMdSunny } from 'react-icons/io';
 import { FaEthereum } from 'react-icons/fa';
 import routes from '../../routes';
 import { useAuth } from '../../contexts/AuthContext';
 import { campusesApi } from '../../services/api';
 import CampusSwitcher from './CampusSwitcher';
+import { Link as RouterLink } from 'react-router-dom';
 
 export default function HeaderLinks(props) {
   const { secondary } = props;
@@ -120,65 +119,7 @@ export default function HeaderLinks(props) {
 
       <CampusSwitcher />
 
-      <Menu>
-        <MenuButton p="0px">
-          <Icon
-            mt="6px"
-            as={MdNotificationsNone}
-            color={navbarIcon}
-            w="18px"
-            h="18px"
-            me="10px"
-          />
-        </MenuButton>
-        <MenuList
-          boxShadow={shadow}
-          p="20px"
-          borderRadius="20px"
-          bg={menuBg}
-          border="none"
-          mt="22px"
-          me={{ base: '30px', md: 'unset' }}
-          minW={{ base: 'unset', md: '400px', xl: '450px' }}
-          maxW={{ base: '360px', md: 'unset' }}
-          zIndex="1000"
-        >
-          <Flex w="100%" mb="20px">
-            <Text fontSize="md" fontWeight="600" color={textColor}>
-              Notifications
-            </Text>
-            <Text
-              fontSize="sm"
-              fontWeight="500"
-              color={textColorBrand}
-              ms="auto"
-              cursor="pointer"
-            >
-              Mark all read
-            </Text>
-          </Flex>
-          <Flex flexDirection="column">
-            <MenuItem
-              _hover={{ bg: 'none' }}
-              _focus={{ bg: 'none' }}
-              px="0"
-              borderRadius="8px"
-              mb="10px"
-            >
-              <ItemContent info="MindSpire SMS Pro" />
-            </MenuItem>
-            <MenuItem
-              _hover={{ bg: 'none' }}
-              _focus={{ bg: 'none' }}
-              px="0"
-              borderRadius="8px"
-              mb="10px"
-            >
-              <ItemContent info="MindSpire SMS Free" />
-            </MenuItem>
-          </Flex>
-        </MenuList>
-      </Menu>
+      
 
       {/* Promotion menu section removed */}
 
@@ -242,16 +183,18 @@ export default function HeaderLinks(props) {
               _focus={{ bg: 'none' }}
               borderRadius="8px"
               px="14px"
+              as={RouterLink}
+              to={
+                user?.role === 'teacher'
+                  ? '/teacher/settings/profile'
+                  : user?.role === 'student'
+                  ? '/student/settings/profile'
+                  : user?.role === 'driver'
+                  ? '/driver/settings'
+                  : '/admin/settings/school-profile'
+              }
             >
               <Text fontSize="sm">Profile Settings</Text>
-            </MenuItem>
-            <MenuItem
-              _hover={{ bg: 'none' }}
-              _focus={{ bg: 'none' }}
-              borderRadius="8px"
-              px="14px"
-            >
-              <Text fontSize="sm">Newsletter Settings</Text>
             </MenuItem>
             <MenuItem
               _hover={{ bg: 'none' }}

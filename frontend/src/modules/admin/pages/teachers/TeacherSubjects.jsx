@@ -160,6 +160,7 @@ const TeacherSubjects = () => {
   const [savingSubject, setSavingSubject] = useState(false);
   const [savingAssignment, setSavingAssignment] = useState(false);
   const [deletingAssignment, setDeletingAssignment] = useState(false);
+  const [syncingBackfill, setSyncingBackfill] = useState(false);
   const [subjectForm, setSubjectForm] = useState(initialSubjectForm);
   const [assignmentForm, setAssignmentForm] = useState(initialAssignmentForm);
   const [assignmentType, setAssignmentType] = useState('add');
@@ -597,6 +598,30 @@ const TeacherSubjects = () => {
     return teacherAssignmentsMap.get(selectedTeacher.id) || [];
   }, [selectedTeacher, teacherAssignmentsMap]);
 
+  const handleBackfillSync = async () => {
+    setSyncingBackfill(true);
+    try {
+      const result = await teacherApi.backfillSubjectAssignments();
+      toast({
+        title: 'Sync Complete',
+        description: `Created ${result.created ?? 0} new allocation(s). ${result.skipped ?? 0} already existed.`,
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
+      await Promise.all([fetchAssignments(), fetchSubjects()]);
+    } catch (error) {
+      toast({
+        title: 'Sync failed',
+        description: error?.message || 'Could not sync allocations.',
+        status: 'error',
+        duration: 4000,
+      });
+    } finally {
+      setSyncingBackfill(false);
+    }
+  };
+
   return (
     <Box pt={{ base: '130px', md: '80px', xl: '80px' }}>
       <Flex mb={5} justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={4}>
@@ -604,9 +629,21 @@ const TeacherSubjects = () => {
           <Heading as="h3" size="lg" mb={1}>Subject Assignment</Heading>
           <Text color={textColorSecondary}>Manage subjects, teachers, and class allocations</Text>
         </Box>
-        <Button leftIcon={<Icon as={MdAdd} />} colorScheme="blue" onClick={subjectDisclosure.onOpen}>
-          Add New Subject
-        </Button>
+        <HStack spacing={2}>
+          <Button
+            leftIcon={<Icon as={MdCheck} />}
+            colorScheme="teal"
+            variant="outline"
+            onClick={handleBackfillSync}
+            isLoading={syncingBackfill}
+            loadingText="Syncing..."
+          >
+            Sync Missing Allocations
+          </Button>
+          <Button leftIcon={<Icon as={MdAdd} />} colorScheme="blue" onClick={subjectDisclosure.onOpen}>
+            Add New Subject
+          </Button>
+        </HStack>
       </Flex>
 
       <SimpleGrid columns={{ base: 1, md: 3 }} spacing={5} mb={5}>

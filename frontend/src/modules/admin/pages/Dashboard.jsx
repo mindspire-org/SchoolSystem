@@ -16,6 +16,17 @@ import {
   Badge,
   HStack,
   Icon,
+  Input,
+  Select,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
   useColorModeValue,
   useToast,
   Avatar,
@@ -52,6 +63,8 @@ import { formatNumber, formatCurrency, getStatusColor, formatDate, formatTime } 
 // API
 import * as dashboardApi from '../../../services/api/dashboard';
 import * as transportApi from '../../../services/api/transport';
+import { campusesApi } from '../../../services/api';
+import { useAuth } from '../../../contexts/AuthContext';
 
 // --- Custom Components ---
 
@@ -134,6 +147,7 @@ const LineChartCard = ({ title, categories, series, height = 250, activeRange, o
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { user } = useAuth();
 
   const busCardBg = useColorModeValue('gray.50', 'whiteAlpha.50');
   const busCardHoverBg = useColorModeValue('blue.50', 'blue.900');
@@ -155,6 +169,9 @@ export default function AdminDashboard() {
   const [feesMonthly, setFeesMonthly] = useState([]);
   const [attRange, setAttRange] = useState('7d');
   const [feeRange, setFeeRange] = useState('1y');
+  const [campusOpen, setCampusOpen] = useState(false);
+  const [campusForm, setCampusForm] = useState({ name: '', email: '', phone: '', address: '', capacity: '', status: 'active' });
+  const [creatingCampus, setCreatingCampus] = useState(false);
 
   // -- Effects --
   useEffect(() => {
@@ -220,6 +237,34 @@ export default function AdminDashboard() {
     series: [teacherStats.present, teacherStats.absent, teacherStats.late, teacherStats.leave],
     labels: ['Present', 'Absent', 'Late', 'Leave'],
     colors: ['#01B574', '#EE5D50', '#FFB547', '#A3AED0']
+  };
+
+  const canAddCampus = user?.role === 'owner' || user?.role === 'superadmin';
+  const handleCreateCampus = async () => {
+    if (!campusForm.name.trim()) {
+      toast({ title: 'Campus name is required', status: 'warning' });
+      return;
+    }
+    try {
+      setCreatingCampus(true);
+      const payload = {
+        name: campusForm.name,
+        email: campusForm.email || null,
+        phone: campusForm.phone || null,
+        address: campusForm.address || null,
+        capacity: campusForm.capacity ? Number(campusForm.capacity) : null,
+        status: campusForm.status || 'active',
+      };
+      await campusesApi.create(payload);
+      toast({ title: 'Campus created', status: 'success' });
+      setCampusOpen(false);
+      setCampusForm({ name: '', email: '', phone: '', address: '', capacity: '', status: 'active' });
+    } catch (e) {
+      const msg = e?.message || 'Failed to create campus';
+      toast({ title: 'Error', description: msg, status: 'error' });
+    } finally {
+      setCreatingCampus(false);
+    }
   };
 
   const attendanceBars = useMemo(() => {
@@ -311,11 +356,23 @@ export default function AdminDashboard() {
               Your school is performing exceptionally today.
             </Text>
           </VStack>
-          <HStack spacing='25px'>
+          <HStack spacing='12px'>
             <Box textAlign='right' display={{ base: 'none', md: 'block' }}>
               <Text fontSize='sm' fontWeight='800' color='blue.600'>{formatDate(new Date())}</Text>
               <Text fontSize='xs' color='gray.400' fontWeight='700' textTransform="uppercase">Term II • 2024-25</Text>
             </Box>
+            {canAddCampus && (
+              <Button
+                leftIcon={<Icon as={MdAdd} />}
+                colorScheme='blue'
+                variant='solid'
+                borderRadius='12px'
+                size='sm'
+                onClick={() => setCampusOpen(true)}
+              >
+                Add Campus
+              </Button>
+            )}
             <Avatar
               size='lg'
               name='Admin User'
@@ -328,6 +385,51 @@ export default function AdminDashboard() {
             />
           </HStack>
         </Flex>
+
+        <Modal isOpen={campusOpen} onClose={() => setCampusOpen(false)} isCentered>
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>Add Campus</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <VStack align='stretch' spacing={3}>
+                <FormControl isRequired>
+                  <FormLabel>Name</FormLabel>
+                  <Input value={campusForm.name} onChange={(e)=>setCampusForm(f=>({ ...f, name: e.target.value }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Email</FormLabel>
+                  <Input type='email' value={campusForm.email} onChange={(e)=>setCampusForm(f=>({ ...f, email: e.target.value }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Phone</FormLabel>
+                  <Input value={campusForm.phone} onChange={(e)=>setCampusForm(f=>({ ...f, phone: e.target.value }))} />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Address</FormLabel>
+                  <Input value={campusForm.address} onChange={(e)=>setCampusForm(f=>({ ...f, address: e.target.value }))} />
+                </FormControl>
+                <HStack>
+                  <FormControl>
+                    <FormLabel>Capacity</FormLabel>
+                    <Input type='number' value={campusForm.capacity} onChange={(e)=>setCampusForm(f=>({ ...f, capacity: e.target.value }))} />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Status</FormLabel>
+                    <Select value={campusForm.status} onChange={(e)=>setCampusForm(f=>({ ...f, status: e.target.value }))}>
+                      <option value='active'>active</option>
+                      <option value='inactive'>inactive</option>
+                    </Select>
+                  </FormControl>
+                </HStack>
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button mr={3} onClick={()=>setCampusOpen(false)}>Cancel</Button>
+              <Button colorScheme='blue' isLoading={creatingCampus} onClick={handleCreateCampus}>Create</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
 
         {/* --- Section 1: Top Stats Cards (Premium) --- */}
         <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing='24px' mb='30px' px='10px'>

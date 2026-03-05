@@ -781,6 +781,41 @@ export async function ensureParentsSchema() {
   `);
 }
 
+export async function ensureParentMessagesSchema() {
+  await query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.tables WHERE table_name = 'parent_messages'
+      ) THEN
+        EXECUTE '
+          CREATE TABLE parent_messages (
+            id SERIAL PRIMARY KEY,
+            parent_id INTEGER NOT NULL REFERENCES parents(id) ON DELETE CASCADE,
+            child_id INTEGER REFERENCES students(id) ON DELETE SET NULL,
+            to_phone TEXT,
+            from_phone TEXT,
+            channel TEXT, -- whatsapp | sms | whatsapp-web | webhook | cloud
+            direction TEXT NOT NULL CHECK (direction IN (''outbound'',''inbound'')),
+            body TEXT NOT NULL,
+            status TEXT, -- queued | sent | delivered | read | failed
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            campus_id INTEGER REFERENCES campuses(id) ON DELETE SET NULL
+          )
+        ';
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns WHERE table_name='parent_messages' AND column_name='campus_id'
+      ) THEN
+        EXECUTE 'ALTER TABLE parent_messages ADD COLUMN campus_id INTEGER REFERENCES campuses(id) ON DELETE SET NULL';
+      END IF;
+      -- Indexes
+      CREATE INDEX IF NOT EXISTS idx_parent_messages_parent ON parent_messages (parent_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_parent_messages_created ON parent_messages (created_at);
+    END $$;
+  `);
+}
+
 export async function ensureCoreTableColumns() {
   await query(`
     DO $$

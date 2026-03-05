@@ -143,8 +143,29 @@ export default function Permissions() {
         </Box>
         <ButtonGroup>
           <Button leftIcon={<MdRefresh />} variant='outline' onClick={() => window.location.reload()}>Refresh</Button>
-          <Button leftIcon={<MdFileDownload />} variant='outline' colorScheme='blue'>Export CSV</Button>
-          <Button leftIcon={<MdFileDownload />} colorScheme='blue'>Export PDF</Button>
+          <Button leftIcon={<MdFileDownload />} variant='outline' colorScheme='blue' onClick={()=>{
+            const visibleRoles = roles.filter(r => roleFilter === 'all' || r === roleFilter);
+            const header = ['Permission', ...visibleRoles.map(r => roleMap[r] || r)];
+            const body = rows.map(row=>{
+              const cells = visibleRoles.map(r => (assignments[r] || []).includes(row.key) ? 'Yes' : 'No');
+              return [row.key, ...cells];
+            });
+            const csv = [header, ...body].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+            const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='permissions.csv'; a.click(); URL.revokeObjectURL(url);
+          }}>Export CSV</Button>
+          <Button leftIcon={<MdFileDownload />} colorScheme='blue' onClick={()=>{
+            const visibleRoles = roles.filter(r => roleFilter === 'all' || r === roleFilter);
+            const headerHtml = ['Permission', ...visibleRoles.map(r => roleMap[r] || r)].map(h=>`<th>${h}</th>`).join('');
+            const rowsHtml = rows.map(row=>{
+              const cells = visibleRoles.map(r => ((assignments[r] || []).includes(row.key) ? 'Yes' : 'No')).map(c=>`<td>${c}</td>`).join('');
+              return `<tr><td>${row.key}</td>${cells}</tr>`;
+            }).join('');
+            const styles = `<style>body{font-family:Arial;padding:16px;} table{width:100%;border-collapse:collapse} th,td{border:1px solid #ddd;padding:6px;font-size:11px} th{background:#f5f5f5;text-align:left} h2{margin:0 0 8px}</style>`;
+            const w = window.open('', '_blank'); if(!w) return;
+            w.document.write(`<html><head><title>Permissions</title>${styles}</head><body><h2>Permissions</h2><table><thead><tr>${headerHtml}</tr></thead><tbody>${rowsHtml}</tbody></table><script>window.onload=function(){window.print();setTimeout(()=>window.close(),300);}</script></body></html>`);
+            w.document.close();
+          }}>Export PDF</Button>
           <Button colorScheme='green' onClick={save}>Save</Button>
         </ButtonGroup>
       </Flex>

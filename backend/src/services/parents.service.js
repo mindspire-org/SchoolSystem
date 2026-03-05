@@ -98,10 +98,26 @@ export const getById = async (id) => {
   const parent = rows[0];
   if (!parent) return null;
   const kidsRes = await query(
-    'SELECT id, name, class, section, roll_number AS "rollNumber" FROM students WHERE family_number = $1 ORDER BY id DESC',
+    `SELECT id,
+            name,
+            class,
+            section,
+            roll_number AS "rollNumber",
+            COALESCE(
+              (parent -> 'father' ->> 'phone'),
+              (parent -> 'mother' ->> 'phone'),
+              parent_phone
+            ) AS "parentPhone"
+       FROM students
+      WHERE family_number = $1
+      ORDER BY id DESC`,
     [parent.familyNumber]
   );
   parent.children = kidsRes.rows;
+  try {
+    const fromKids = parent.children?.find((c) => c.parentPhone)?.parentPhone;
+    if (fromKids) parent.whatsappPhone = fromKids;
+  } catch (_) {}
   return parent;
 };
 

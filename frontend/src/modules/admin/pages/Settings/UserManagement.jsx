@@ -239,7 +239,20 @@ export default function UserManagement() {
         </Box>
         <ButtonGroup>
           <Button leftIcon={<MdRefresh />} variant='outline' onClick={() => window.location.reload()}>Refresh</Button>
-          <Button leftIcon={<MdFileDownload />} variant='outline' colorScheme='blue'>Export CSV</Button>
+          <Button leftIcon={<MdFileDownload />} variant='outline' colorScheme='blue' onClick={()=>{
+            const header = ['Name','Username','Email','Role','Created'];
+            const rows = filtered.map(u => [
+              u.name || '',
+              u.username || '',
+              u.email || '',
+              u.role || '',
+              u.createdAt ? new Date(u.createdAt).toLocaleString() : ''
+            ]);
+            const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+            const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'users.csv'; a.click(); URL.revokeObjectURL(url);
+          }}>Export CSV</Button>
           <Button leftIcon={<MdAdd />} colorScheme='blue' onClick={createDisc.onOpen}>Add User</Button>
         </ButtonGroup>
       </Flex>

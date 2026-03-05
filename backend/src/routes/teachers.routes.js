@@ -10,8 +10,8 @@ const attendanceStatuses = ['present', 'absent', 'late'];
 const payrollStatuses = ['pending', 'processing', 'paid', 'failed', 'cancelled'];
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d(?:[:][0-5]\d)?$/;
 const monthPattern = /^\d{4}-\d{2}$/;
- const phone11DigitsPattern = /^\d{11}$/;
- const cnic13DigitsPattern = /^\d{13}$/;
+const phone11DigitsPattern = /^\d{11}$/;
+const cnic13DigitsPattern = /^\d{13}$/;
 
 router.get(
   '/',
@@ -29,6 +29,38 @@ router.get(
   '/me',
   authenticate,
   teacherController.getMe
+);
+
+// Update own profile (limited fields)
+router.put(
+  '/me',
+  authenticate,
+  [
+    body('name').optional().isString().trim(),
+    body('phone').optional().isString().trim(),
+    body('gender').optional().isString().trim(),
+    body('designation').optional().isString().trim(),
+    body('department').optional().isString().trim(),
+    body('address1').optional().isString().trim(),
+    body('address2').optional().isString().trim(),
+    body('city').optional().isString().trim(),
+    body('state').optional().isString().trim(),
+    body('postalCode').optional().isString().trim(),
+    body('avatar').optional().isString().trim(),
+  ],
+  validate,
+  teacherController.updateMe
+);
+
+router.post(
+  '/me/change-password',
+  authenticate,
+  [
+    body('currentPassword').isString().notEmpty(),
+    body('newPassword').isString().isLength({ min: 6 }),
+  ],
+  validate,
+  teacherController.changeMyPassword
 );
 
 const optionalString = (field) => body(field).optional({ checkFalsy: true }).isString().trim();
@@ -354,6 +386,16 @@ router.delete(
   [param('id').isInt()],
   validate,
   teacherController.removeSubject
+);
+
+// Backfill: create teacher_subject_assignments from teachers.subjects JSONB for existing teachers
+router.post(
+  '/subjects/backfill',
+  authenticate,
+  authorize('admin', 'owner', 'superadmin'),
+  [],
+  validate,
+  teacherController.backfillSubjectAssignments
 );
 
 router.get(

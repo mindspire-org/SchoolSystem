@@ -223,7 +223,27 @@ export default function RoleManagement() {
         </Box>
         <ButtonGroup>
           <Button leftIcon={<MdRefresh />} variant='outline' onClick={() => window.location.reload()}>Refresh</Button>
-          <Button leftIcon={<MdFileDownload />} variant='outline' colorScheme='blue'>Export CSV</Button>
+          <Button leftIcon={<MdFileDownload />} variant='outline' colorScheme='blue' onClick={()=>{
+            const header = ['Role','Users','Permissions','Status'];
+            const rowsCsv = filtered.map(r=>{
+              const permsCount = (permAssignments?.[r.id] || []).length;
+              return [r.name, r.users || 0, permsCount, r.active ? 'Active' : 'Inactive'];
+            });
+            const csv = [header, ...rowsCsv].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+            const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'roles.csv'; a.click(); URL.revokeObjectURL(url);
+          }}>Export CSV</Button>
+          <Button leftIcon={<MdFileDownload />} colorScheme='blue' onClick={()=>{
+            const styles = `<style>body{font-family:Arial;padding:16px;} h2{margin:0 0 8px} table{width:100%;border-collapse:collapse;margin-top:8px} th,td{border:1px solid #ddd;padding:8px;font-size:12px} th{background:#f5f5f5;text-align:left}</style>`;
+            const rowsHtml = filtered.map(r=>{
+              const permsCount = (permAssignments?.[r.id] || []).length;
+              return `<tr><td>${r.name}</td><td>${r.users || 0}</td><td>${permsCount}</td><td>${r.active ? 'Active' : 'Inactive'}</td></tr>`;
+            }).join('');
+            const w = window.open('', '_blank'); if(!w) return;
+            w.document.write(`<html><head><title>Roles</title>${styles}</head><body><h2>Role Management</h2><table><thead><tr><th>Role</th><th>Users</th><th>Permissions</th><th>Status</th></tr></thead><tbody>${rowsHtml}</tbody></table><script>window.onload=function(){window.print();setTimeout(()=>window.close(),300);}</script></body></html>`);
+            w.document.close();
+          }}>Export PDF</Button>
           <Button leftIcon={<MdAdd />} colorScheme='blue' onClick={createDisc.onOpen}>New Role</Button>
         </ButtonGroup>
       </Flex>

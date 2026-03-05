@@ -9,6 +9,13 @@ export const authenticate = async (req, res, next) => {
     const secret = process.env.JWT_SECRET || 'dev_jwt_secret';
     const payload = jwt.verify(token, secret);
 
+    // Ensure campusId is always a number if present
+    if (payload.campus_id && !payload.campusId) {
+      payload.campusId = Number(payload.campus_id);
+    } else if (payload.campusId) {
+      payload.campusId = Number(payload.campusId);
+    }
+
     // Support campus override for administrators
     const campusHeader = req.headers['x-campus-id'];
     if (campusHeader && (payload.role === 'owner' || payload.role === 'superadmin' || payload.role === 'admin')) {
@@ -41,7 +48,11 @@ export const authenticate = async (req, res, next) => {
 export const authorize = (...roles) => (req, res, next) => {
   if (!roles.length) return next();
   const role = req.user?.role;
-  if (role === 'superadmin' && (roles.includes('admin') || roles.includes('owner'))) return next();
+  
+  // Superadmin has access to everything
+  if (role === 'superadmin') return next();
+  // Owner has access to everything
+  if (role === 'owner') return next();
 
   if (!role || !roles.includes(role)) return res.status(403).json({ message: 'Forbidden' });
   next();

@@ -4,10 +4,11 @@ import {
     Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, ModalFooter,
     FormControl, FormLabel, Input, Select, Textarea, useDisclosure
 } from '@chakra-ui/react';
-import { MdAdd } from 'react-icons/md';
+import { MdAdd, MdEdit, MdDelete, MdVisibility } from 'react-icons/md';
 import Card from '../../../../../components/card/Card';
 import { hrEmployeesApi, leaveApi } from '../../../../../services/moduleApis';
 import { useAuth } from '../../../../../contexts/AuthContext';
+import { IconButton, Tooltip, AlertDialog, AlertDialogBody, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogOverlay } from '@chakra-ui/react';
 
 export default function LeaveRequests() {
     const { campusId } = useAuth();
@@ -16,14 +17,21 @@ export default function LeaveRequests() {
     const [leaves, setLeaves] = useState([]);
     const [loading, setLoading] = useState(true);
     const [employees, setEmployees] = useState([]);
-    const [formData, setFormData] = useState({
+    const [mode, setMode] = useState('add'); // 'add', 'edit', 'view'
+    const [selectedId, setSelectedId] = useState(null);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const cancelRef = React.useRef();
+
+    const initialForm = {
         employeeName: '',
         employeeId: '',
         leaveType: 'Casual Leave',
         startDate: '',
         endDate: '',
         reason: ''
-    });
+    };
+    const [formData, setFormData] = useState(initialForm);
 
     const textColor = useColorModeValue('secondaryGray.900', 'white');
 
@@ -56,8 +64,14 @@ export default function LeaveRequests() {
                 toast({ title: 'Please select an employee', status: 'warning' });
                 return;
             }
-            await leaveApi.create({ ...formData, campusId, employeeId: Number(formData.employeeId) });
-            toast({ title: 'Leave Requested', status: 'success' });
+            const payload = { ...formData, campusId, employeeId: Number(formData.employeeId) };
+            if (mode === 'add') {
+                await leaveApi.create(payload);
+                toast({ title: 'Leave Requested', status: 'success' });
+            } else {
+                await leaveApi.update(selectedId, payload);
+                toast({ title: 'Leave Updated', status: 'success' });
+            }
             onClose();
             fetchLeaves();
         } catch (e) { toast({ title: 'Error', status: 'error' }); }
@@ -66,17 +80,46 @@ export default function LeaveRequests() {
     const handleAction = async (id, action) => {
         try {
             if (action === 'approve') await leaveApi.approve(id);
-            else await leaveApi.reject(id, 'Admin Action');
+            else if (action === 'reject') await leaveApi.reject(id, 'Admin Action');
+            else if (action === 'delete') {
+                await leaveApi.delete(id);
+                toast({ title: 'Leave Request deleted', status: 'success' });
+                setIsDeleteOpen(false);
+            }
             fetchLeaves();
-            toast({ title: `Leave ${action}d`, status: 'success' });
+            if (action !== 'delete') toast({ title: `Leave ${action}d`, status: 'success' });
         } catch (e) { toast({ title: 'Error', status: 'error' }); }
+    };
+
+    const openModal = (m, item = null) => {
+        setMode(m);
+        if (item) {
+            setSelectedId(item.id);
+            setFormData({
+                employeeName: item.employeeName,
+                employeeId: item.employeeId,
+                leaveType: item.leaveType,
+                startDate: item.startDate ? new Date(item.startDate).toISOString().split('T')[0] : '',
+                endDate: item.endDate ? new Date(item.endDate).toISOString().split('T')[0] : '',
+                reason: item.reason || ''
+            });
+        } else {
+            setSelectedId(null);
+            setFormData(initialForm);
+        }
+        onOpen();
+    };
+
+    const confirmDelete = (id) => {
+        setDeleteTarget(id);
+        setIsDeleteOpen(true);
     };
 
     return (
         <Box pt={{ base: '130px', md: '80px', xl: '80px' }}>
             <Flex justify='space-between' align='center' mb='20px'>
                 <Heading color={textColor} fontSize='2xl'>Leave Management</Heading>
-                <Button leftIcon={<MdAdd />} variant='brand' onClick={onOpen}>Apply Leave</Button>
+                <Button leftIcon={<MdAdd />} variant='brand' onClick={() => openModal('add')}>Apply Leave</Button>
             </Flex>
             <Card p='20px'>
                 <Table variant='simple'>
@@ -90,12 +133,17 @@ export default function LeaveRequests() {
                                 <Td>{new Date(l.endDate).toLocaleDateString()}</Td>
                                 <Td><Badge colorScheme={l.status === 'Approved' ? 'green' : l.status === 'Rejected' ? 'red' : 'yellow'}>{l.status}</Badge></Td>
                                 <Td>
-                                    {l.status === 'Pending' && (
-                                        <Flex gap={2}>
-                                            <Button size='xs' colorScheme='green' onClick={() => handleAction(l.id, 'approve')}>Approve</Button>
-                                            <Button size='xs' colorScheme='red' onClick={() => handleAction(l.id, 'reject')}>Reject</Button>
-                                        </Flex>
-                                    )}
+                                    <Flex gap={2}>
+                                        <Tooltip label="View Details"><IconButton icon={<MdVisibility />} size="sm" onClick={() => openModal('view', l)} aria-label="View" /></Tooltip>
+                                        <Tooltip label="Edit"><IconButton icon={<MdEdit />} size="sm" colorScheme="blue" onClick={() => openModal('edit', l)} aria-label="Edit" /></Tooltip>
+                                        <Tooltip label="Delete"><IconButton icon={<MdDelete />} size="sm" colorScheme="red" onClick={() => confirmDelete(l.id)} aria-label="Delete" /></Tooltip>
+                                        {l.status === 'Pending' && (
+                                            <>
+                                                <Button size='sm' colorScheme='green' variant="ghost" onClick={() => handleAction(l.id, 'approve')}>Approve</Button>
+                                                <Button size='sm' colorScheme='red' variant="ghost" onClick={() => handleAction(l.id, 'reject')}>Reject</Button>
+                                            </>
+                                        )}
+                                    </Flex>
                                 </Td>
                             </Tr>
                         ))}
@@ -103,15 +151,16 @@ export default function LeaveRequests() {
                 </Table>
             </Card>
 
-            <Modal isOpen={isOpen} onClose={onClose}>
+            <Modal isOpen={isOpen} onClose={onClose} size="xl">
                 <ModalOverlay />
                 <ModalContent>
-                    <ModalHeader>Apply for Leave</ModalHeader>
+                    <ModalHeader>{mode === 'view' ? 'Leave Details' : mode === 'edit' ? 'Edit Leave Request' : 'Apply for Leave'}</ModalHeader>
                     <ModalCloseButton />
                     <ModalBody>
                         <FormControl mb={3}>
                             <FormLabel>Employee Name</FormLabel>
                             <Select
+                                isDisabled={mode !== 'add'}
                                 placeholder="Select Employee"
                                 value={formData.employeeId || ''}
                                 onChange={(e) => {
@@ -133,7 +182,7 @@ export default function LeaveRequests() {
                         </FormControl>
                         <FormControl mb={3}>
                             <FormLabel>Type</FormLabel>
-                            <Select value={formData.leaveType} onChange={e => setFormData({ ...formData, leaveType: e.target.value })}>
+                            <Select isDisabled={mode === 'view'} value={formData.leaveType} onChange={e => setFormData({ ...formData, leaveType: e.target.value })}>
                                 <option value='Sick Leave'>Sick Leave</option>
                                 <option value='Marriage Leave'>Marriage Leave</option>
                                 <option value='Urgent Leave'>Urgent Leave</option>
@@ -147,23 +196,41 @@ export default function LeaveRequests() {
                         <Flex gap={2} mb={3}>
                             <FormControl>
                                 <FormLabel>Start Date</FormLabel>
-                                <Input type='date' value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} />
+                                <Input isDisabled={mode === 'view'} type='date' value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} />
                             </FormControl>
                             <FormControl>
                                 <FormLabel>End Date</FormLabel>
-                                <Input type='date' value={formData.endDate} onChange={e => setFormData({ ...formData, endDate: e.target.value })} />
+                                <Input isDisabled={mode === 'view'} type='date' value={formData.endDate} onChange={e => setFormData({ ...formData, endDate: e.target.value })} />
                             </FormControl>
                         </Flex>
                         <FormControl mb={3}>
                             <FormLabel>Reason</FormLabel>
-                            <Textarea value={formData.reason} onChange={e => setFormData({ ...formData, reason: e.target.value })} />
+                            <Textarea readOnly={mode === 'view'} value={formData.reason} onChange={e => setFormData({ ...formData, reason: e.target.value })} />
                         </FormControl>
                     </ModalBody>
                     <ModalFooter>
-                        <Button colorScheme='blue' onClick={handleSubmit}>Submit Request</Button>
+                        {mode !== 'view' && <Button colorScheme='blue' onClick={handleSubmit}>{mode === 'edit' ? 'Update Request' : 'Submit Request'}</Button>}
+                        <Button variant="ghost" ml={3} onClick={onClose}>Close</Button>
                     </ModalFooter>
                 </ModalContent>
             </Modal>
+
+            <AlertDialog
+                isOpen={isDeleteOpen}
+                leastDestructiveRef={cancelRef}
+                onClose={() => setIsDeleteOpen(false)}
+            >
+                <AlertDialogOverlay>
+                    <AlertDialogContent>
+                        <AlertDialogHeader fontSize='lg' fontWeight='bold'>Delete Leave Request</AlertDialogHeader>
+                        <AlertDialogBody>Are you sure? You can't undo this action afterwards.</AlertDialogBody>
+                        <AlertDialogFooter>
+                            <Button ref={cancelRef} onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
+                            <Button colorScheme='red' onClick={() => handleAction(deleteTarget, 'delete')} ml={3}>Delete</Button>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialogOverlay>
+            </AlertDialog>
         </Box>
     );
 }

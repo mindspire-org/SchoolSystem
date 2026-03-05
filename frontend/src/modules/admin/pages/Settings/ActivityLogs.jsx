@@ -42,8 +42,20 @@ export default function ActivityLogs() {
         </Box>
         <ButtonGroup>
           <Button leftIcon={<MdRefresh />} variant='outline' onClick={() => window.location.reload()}>Refresh</Button>
-          <Button leftIcon={<MdFileDownload />} variant='outline' colorScheme='blue'>Export CSV</Button>
-          <Button leftIcon={<MdFileDownload />} colorScheme='blue'>Export PDF</Button>
+          <Button leftIcon={<MdFileDownload />} variant='outline' colorScheme='blue' onClick={()=>{
+            const header = ['ID','Timestamp','User','Action','Module','Status','IP'];
+            const data = filtered.map(l => [l.id, l.ts, l.user, l.action, l.module, l.status, l.ip]);
+            const csv = [header, ...data].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+            const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='activity_logs.csv'; a.click(); URL.revokeObjectURL(url);
+          }}>Export CSV</Button>
+          <Button leftIcon={<MdFileDownload />} colorScheme='blue' onClick={()=>{
+            const styles = `<style>body{font-family:Arial;padding:16px;} h2{margin:0 0 8px} table{width:100%;border-collapse:collapse} th,td{border:1px solid #ddd;padding:6px;font-size:11px} th{background:#f5f5f5;text-align:left}</style>`;
+            const rowsHtml = filtered.map(l => `<tr><td>${l.id}</td><td>${l.ts}</td><td>${l.user}</td><td>${l.action}</td><td>${l.module}</td><td>${l.status}</td><td>${l.ip}</td></tr>`).join('');
+            const w = window.open('', '_blank'); if(!w) return;
+            w.document.write(`<html><head><title>Activity Logs</title>${styles}</head><body><h2>Activity Logs</h2><table><thead><tr><th>ID</th><th>Timestamp</th><th>User</th><th>Action</th><th>Module</th><th>Status</th><th>IP</th></tr></thead><tbody>${rowsHtml}</tbody></table><script>window.onload=function(){window.print();setTimeout(()=>window.close(),300);}</script></body></html>`);
+            w.document.close();
+          }}>Export PDF</Button>
         </ButtonGroup>
       </Flex>
 

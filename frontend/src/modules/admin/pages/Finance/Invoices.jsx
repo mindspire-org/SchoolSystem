@@ -22,6 +22,8 @@ export default function Invoices() {
   const toast = useToast();
   const location = useLocation();
   const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
+  const theadBg = useColorModeValue('gray.50', 'gray.800');
+  const rowHoverBg = useColorModeValue('gray.50', 'gray.700');
 
   // State
   const [roleFilter, setRoleFilter] = useState('all');
@@ -431,7 +433,7 @@ export default function Invoices() {
         <Box overflowX='auto'>
           <Box maxH='420px' overflowY='auto'>
             <Table size='sm' variant='simple'>
-              <Thead position='sticky' top={0} zIndex={1} bg={useColorModeValue('gray.50', 'gray.800')}>
+              <Thead position='sticky' top={0} zIndex={1} bg={theadBg}>
                 <Tr>
                   <Th width='40px'>
                     <Checkbox
@@ -454,7 +456,7 @@ export default function Invoices() {
                 {filteredInvoices.length === 0 ? (
                   <Tr><Td colSpan={9} textAlign="center" py={8} color="gray.500">No invoices found</Td></Tr>
                 ) : filteredInvoices.map((i) => (
-                  <Tr key={i.id} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
+                  <Tr key={i.id} _hover={{ bg: rowHoverBg }}>
                     <Td><Checkbox isChecked={selectedIds.includes(i.id)} onChange={() => toggleSelect(i.id)} /></Td>
                     <Td><Text fontWeight='600'>{i.invoiceNumber}</Text></Td>
                     <Td>

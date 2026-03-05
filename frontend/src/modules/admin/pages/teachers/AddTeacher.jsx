@@ -252,7 +252,7 @@ const AddTeacher = () => {
     }
     toast({
       title: 'Teacher added',
-      description: res?.name ? `${res.name} has been added successfully.` : 'Teacher created successfully.',
+      description: res?.name ? `${res.name} has been added successfully with subject and class allocations.` : 'Teacher created successfully with subject and class allocations.',
       status: 'success',
       duration: 5000,
       isClosable: true,
@@ -261,6 +261,31 @@ const AddTeacher = () => {
   }, [resetForm, toast]);
 
   const handleError = useCallback((error) => {
+    // Check for 409 Conflict (Duplicate email/employeeId)
+    if (error?.status === 409 || error?.data?.status === 409) {
+      const msg = error?.data?.message || error?.message || 'Conflict: Email or Employee ID already exists.';
+      const nextErrors = {};
+      
+      if (msg.toLowerCase().includes('email')) nextErrors.email = 'Email already in use';
+      if (msg.toLowerCase().includes('employee id')) nextErrors.employeeId = 'Employee ID already in use';
+      
+      if (Object.keys(nextErrors).length) {
+        setErrors((prev) => ({ ...prev, ...nextErrors }));
+        // Switch to the relevant step if needed
+        if (nextErrors.email) setCurrentStep(0);
+        else if (nextErrors.employeeId) setCurrentStep(1);
+      }
+
+      toast({
+        title: 'Conflict Detected',
+        description: msg,
+        status: 'error',
+        duration: 6000,
+        isClosable: true,
+      });
+      return;
+    }
+
     const apiErrors = Array.isArray(error?.data?.errors) ? error.data.errors : null;
     if (apiErrors && apiErrors.length) {
       const mapped = {};

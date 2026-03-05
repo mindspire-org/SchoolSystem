@@ -105,6 +105,14 @@ export const getMyModules = async (req, res, next) => {
   try {
     const role = String(req.user?.role || '').toLowerCase();
     if (!role) return res.status(400).json({ message: 'No role' });
+
+    // Teacher and student portals show all their own portal sections.
+    // Their data access is already scoped server-side by user_id/campus_id,
+    // so client-side module filtering via admin-portal RBAC names is not needed.
+    if (role === 'teacher' || role === 'student') {
+      return res.json({ allowModules: 'ALL', allowSubroutes: 'ALL' });
+    }
+
     const data = await rbac.listModuleAssignments();
     const item = data?.assignments?.[role] || { allowModules: [], allowSubroutes: [] };
     res.json(item);

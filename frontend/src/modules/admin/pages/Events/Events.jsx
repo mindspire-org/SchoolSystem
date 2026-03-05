@@ -8,6 +8,7 @@ import { MdAdd, MdSearch, MdEdit, MdDelete, MdEvent } from 'react-icons/md';
 import Card from '../../../../components/card/Card';
 import StatCard from '../../../../components/card/StatCard';
 import { eventsApi } from '../../../../services/moduleApis';
+import { campusesApi } from '../../../../services/api';
 import { useAuth } from '../../../../contexts/AuthContext';
 
 export default function Events() {
@@ -16,14 +17,22 @@ export default function Events() {
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [events, setEvents] = useState([]);
+    const [campuses, setCampuses] = useState([]);
 
     const { isOpen, onOpen, onClose } = useDisclosure();
-    const [form, setForm] = useState({ id: '', title: '', date: '', category: 'Academic', venue: '', participants: '', description: '', status: 'Planned' });
+    const [form, setForm] = useState({ id: '', title: '', date: '', category: 'Academic', campusId: null, participants: '', description: '', status: 'Planned' });
     const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
 
     useEffect(() => {
         fetchEvents();
     }, [campusId]);
+
+    useEffect(() => {
+        campusesApi
+            .list({ pageSize: 100 })
+            .then((res) => setCampuses(res?.rows || []))
+            .catch(() => setCampuses([]));
+    }, []);
 
     const fetchEvents = async () => {
         setLoading(true);
@@ -39,7 +48,8 @@ export default function Events() {
 
     const handleSave = async () => {
         try {
-            const payload = { ...form, campusId };
+            const selectedCampusId = form.campusId || campusId;
+            const payload = { ...form, campusId: selectedCampusId };
             delete payload.id;
             if (payload.date && /^\d{4}-\d{2}-\d{2}$/.test(String(payload.date))) {
                 payload.date = new Date(`${payload.date}T00:00:00.000Z`).toISOString();
@@ -90,7 +100,7 @@ export default function Events() {
                     <Heading as="h3" size="lg" mb={1}>Event Management</Heading>
                     <Text color={textColorSecondary}>Create and manage school events</Text>
                 </Box>
-                <Button leftIcon={<MdAdd />} colorScheme="blue" onClick={() => { setForm({ id: '', title: '', date: '', category: 'Academic', venue: '', participants: '', description: '', status: 'Planned' }); onOpen(); }}>
+                <Button leftIcon={<MdAdd />} colorScheme="blue" onClick={() => { setForm({ id: '', title: '', date: '', category: 'Academic', campusId: campusId || null, participants: '', description: '', status: 'Planned' }); onOpen(); }}>
                     Create Event
                 </Button>
             </Flex>
@@ -127,7 +137,7 @@ export default function Events() {
                                 <Th>Event Title</Th>
                                 <Th>Date</Th>
                                 <Th>Category</Th>
-                                <Th>Venue</Th>
+                                <Th>Campus</Th>
                                 <Th>Participants</Th>
                                 <Th>Status</Th>
                                 <Th>Actions</Th>
@@ -143,11 +153,11 @@ export default function Events() {
                                     <Td><Text fontWeight="600">{event.title}</Text></Td>
                                     <Td>{event.date}</Td>
                                     <Td>{event.category}</Td>
-                                    <Td>{event.venue}</Td>
+                                    <Td>{(campuses.find(c => String(c.id) === String(event.campusId)) || {}).name || '—'}</Td>
                                     <Td>{event.participants}</Td>
                                     <Td><Badge colorScheme={event.status === 'Completed' ? 'green' : event.status === 'Upcoming' ? 'orange' : 'blue'}>{event.status}</Badge></Td>
                                     <Td>
-                                        <IconButton aria-label="Edit" icon={<MdEdit />} size="sm" variant="ghost" onClick={() => { setForm(event); onOpen(); }} />
+                                        <IconButton aria-label="Edit" icon={<MdEdit />} size="sm" variant="ghost" onClick={() => { setForm({ ...event, campusId: event.campusId || campusId || null }); onOpen(); }} />
                                         <IconButton aria-label="Delete" icon={<MdDelete />} size="sm" variant="ghost" colorScheme="red" onClick={() => handleDelete(event.id)} />
                                     </Td>
                                 </Tr>
@@ -182,8 +192,16 @@ export default function Events() {
                             </Select>
                         </FormControl>
                         <FormControl mb={3}>
-                            <FormLabel>Venue</FormLabel>
-                            <Input value={form.venue} onChange={(e) => setForm({ ...form, venue: e.target.value })} />
+                            <FormLabel>Campus</FormLabel>
+                            <Select
+                                placeholder="Select campus"
+                                value={form.campusId || ''}
+                                onChange={(e) => setForm({ ...form, campusId: e.target.value ? Number(e.target.value) : null })}
+                            >
+                                {campuses.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </Select>
                         </FormControl>
                         <FormControl mb={3}>
                             <FormLabel>Expected Participants</FormLabel>
