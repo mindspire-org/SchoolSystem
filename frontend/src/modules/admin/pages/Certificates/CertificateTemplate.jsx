@@ -65,6 +65,7 @@ export default function CertificateTemplate({ isMasterData }) {
     };
     const [form, setForm] = useState(emptyForm);
     const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
+    const hoverBg = useColorModeValue('gray.50', 'gray.700');
 
     useEffect(() => {
         fetchTemplates();
@@ -195,7 +196,7 @@ export default function CertificateTemplate({ isMasterData }) {
                             ) : templates.length === 0 ? (
                                 <Tr><Td colSpan={5} textAlign="center">No templates found</Td></Tr>
                             ) : templates.filter(t => t.name?.toLowerCase().includes(search.toLowerCase())).map((template) => (
-                                <Tr key={template.id} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
+                                <Tr key={template.id} _hover={{ bg: hoverBg }}>
                                     <Td><Text fontWeight="600">{template.name}</Text></Td>
                                     <Td>{template.type}</Td>
                                     <Td>{template.layout}</Td>
