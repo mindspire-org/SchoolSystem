@@ -124,6 +124,8 @@ export default function IdCardTemplate({ isMasterData }) {
         }
     };
 
+    const hoverBg = useColorModeValue('gray.50', 'gray.700');
+
     return (
         <Box pt={isMasterData ? '0px' : { base: '130px', md: '80px', xl: '80px' }}>
             <Flex mb={5} justify="space-between" align="center" gap={3} flexWrap="wrap">
@@ -168,7 +170,7 @@ export default function IdCardTemplate({ isMasterData }) {
                             ) : templates.length === 0 ? (
                                 <Tr><Td colSpan={6} textAlign="center">No templates found</Td></Tr>
                             ) : templates.filter(t => t.name?.toLowerCase().includes(search.toLowerCase())).map((template) => (
-                                <Tr key={template.id} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
+                                <Tr key={template.id} _hover={{ bg: hoverBg }}>
                                     <Td><Text fontWeight="600">{template.name}</Text></Td>
                                     <Td>{template.type}</Td>
                                     <Td>{template.layout}</Td>
