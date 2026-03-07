@@ -35,6 +35,7 @@ import eventsCertificatesRoutes from './eventsCertificates.routes.js';
 import certificatesRoutes from './certificates.routes.js';
 import hrRoutes from './hr.routes.js';
 import webhooksRoutes from './webhooks.routes.js';
+import twilioDashboardRoutes from './twilioDashboard.routes.js';
 
 const router = Router();
 
@@ -74,5 +75,6 @@ router.use('/events-certificates', eventsCertificatesRoutes);
 router.use('/certificates', certificatesRoutes);
 router.use('/hr', hrRoutes);
 router.use('/webhooks', webhooksRoutes);
+router.use('/twilio-dashboard', twilioDashboardRoutes);
 
 export default router;

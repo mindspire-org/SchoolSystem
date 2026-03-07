@@ -1097,6 +1097,18 @@ export const getSMSRoutes = () => {
           path: '/settings/activity-logs',
           component: lazy(() => import('./modules/admin/pages/Settings/ActivityLogs')),
         },
+        {
+          name: 'Twilio Settings',
+          layout: '/admin',
+          path: '/settings/twilio',
+          component: lazy(() => import('./modules/admin/pages/Settings/TwilioSettings')),
+        },
+        {
+          name: 'Twilio Dashboard',
+          layout: '/admin',
+          path: '/settings/twilio-dashboard',
+          component: lazy(() => import('./modules/admin/pages/Settings/TwilioDashboard')),
+        },
       ],
     },
 

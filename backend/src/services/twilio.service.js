@@ -56,6 +56,11 @@ export const sendWhatsAppText = async ({ to, body, from } = {}) => {
   };
   const toParam = normalizeWa(toFinal);
   const fromParam = normalizeWa(fromFinal);
+  console.log('--- TWILIO WHATSAPP SEND ATTEMPT ---');
+  console.log('To:', toParam);
+  console.log('From:', fromParam);
+  console.log('Body:', body);
+
   const params = new URLSearchParams();
   params.append('To', toParam);
   params.append('From', fromParam);
@@ -70,8 +75,12 @@ export const sendWhatsAppText = async ({ to, body, from } = {}) => {
     body: params.toString(),
   });
   const data = await resp.json().catch(() => ({}));
+  console.log('Twilio API Response Status:', resp.status);
+  console.log('Twilio API Response Data:', JSON.stringify(data, null, 2));
+  
   if (!resp.ok) {
     const msg = data?.message || resp.statusText || 'Twilio WhatsApp send failed';
+    console.error('Twilio WhatsApp Send Error:', msg);
     throw new Error(msg);
   }
   return { success: true, sid: data.sid || null, status: data.status || null, to: toParam, from: fromParam };

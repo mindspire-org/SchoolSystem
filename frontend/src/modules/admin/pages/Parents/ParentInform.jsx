@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Box, Button, Card, CardBody, Flex, Heading, HStack, Input, InputGroup, InputLeftAddon, Select, Text, Textarea, useToast, VStack, Avatar, Divider } from '@chakra-ui/react';
+import React, { useEffect, useState } from 'react';
+import { Alert, AlertIcon, AlertTitle, AlertDescription, Box, Button, Card, CardBody, Flex, Heading, HStack, Input, InputGroup, InputLeftAddon, Select, Text, Textarea, useToast, VStack, Avatar, Badge } from '@chakra-ui/react';
 import { MdArrowBack } from 'react-icons/md';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { parentsApi, campusesApi } from '../../../../services/api';
@@ -23,6 +23,7 @@ export default function ParentInform() {
   const [messages, setMessages] = useState([]);
   const [poller, setPoller] = useState(null);
   const [historyEnabled, setHistoryEnabled] = useState(true);
+  const [twilioConfigError, setTwilioConfigError] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -129,16 +130,20 @@ export default function ParentInform() {
     }
     try {
       setLoading(true);
+      setTwilioConfigError(null);
       const payload = { childId: childId || null, message, channel };
       if (toPhone) payload.toPhone = toPhone;
       const resp = await parentsApi.inform(parentId || '0', payload);
       const via = resp?.via || (channel === 'sms' ? 'twilio:sms' : 'twilio:whatsapp');
       if (resp?.delivered) {
         const note = channel === 'whatsapp' && via === 'twilio:sms' ? ' (fallback to SMS)' : '';
-        toast({ title: 'Message queued', description: `Sent via ${via}${note}.`, status: 'success' });
+        toast({ title: 'Message sent!', description: `Delivered via ${via}${note}.`, status: 'success' });
+        setTwilioConfigError(null);
       } else {
-        const errMsg = resp?.error || 'Message not delivered. Check Twilio configuration or number.';
-        toast({ title: 'Not delivered', description: errMsg, status: 'warning' });
+        const errMsg = resp?.error || 'Message not delivered.';
+        // Show long error in the banner, not just a toast, so admin can read and act
+        setTwilioConfigError(errMsg);
+        toast({ title: 'Not delivered', description: errMsg, status: 'warning', duration: 6000, isClosable: true });
       }
       // optimistic add to chat
       setMessages((prev) => [...prev, {
@@ -150,13 +155,14 @@ export default function ParentInform() {
         channel: via,
         direction: 'outbound',
         body: message,
-        status: resp?.delivered ? 'sent' : 'queued',
+        status: resp?.delivered ? 'sent' : 'failed',
         createdAt: new Date().toISOString()
       }]);
       setMessage('');
     } catch (e) {
-      const msg = e?.data?.message || e?.message || 'Failed to send';
-      toast({ title: 'Failed to send', description: msg, status: 'error' });
+      const msg = e?.data?.message || e?.response?.data?.message || e?.message || 'Failed to send';
+      setTwilioConfigError(msg);
+      toast({ title: 'Failed to send', description: msg, status: 'error', duration: 6000, isClosable: true });
     } finally {
       setLoading(false);
     }
@@ -196,6 +202,32 @@ export default function ParentInform() {
       <Card>
         <CardBody>
           <Flex direction="column" gap={4}>
+            {/* Twilio delivery error banner */}
+            {twilioConfigError && (
+              <Alert status="warning" borderRadius="md">
+                <AlertIcon />
+                <Box>
+                  <AlertTitle>Message not delivered</AlertTitle>
+                  <AlertDescription fontSize="sm">
+                    {twilioConfigError}
+                    <br />
+                    Make sure your <strong>Twilio Account SID</strong>, <strong>Auth Token</strong>, and <strong>WhatsApp From number</strong> are configured in <strong>Admin → Settings → Twilio</strong>.
+                  </AlertDescription>
+                </Box>
+              </Alert>
+            )}
+
+            {/* Twilio inbound reply hint */}
+            {channel === 'whatsapp' && parentId && (
+              <Alert status="info" borderRadius="md" fontSize="sm">
+                <AlertIcon />
+                <AlertDescription>
+                  For parent replies to appear here, set your Twilio WhatsApp Sandbox "When a message comes in" webhook to:
+                  {' '}<strong>{window.location.origin.replace(':5173', ':5000')}/api/webhooks/twilio/messages</strong>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Select placeholder="Select parent" value={parentId} onChange={(e) => onParentChange(e.target.value)}>
               {(parents || []).map((p) => (
                 <option key={p.id} value={p.id}>{p.primaryName || p.fatherName || p.motherName || p.familyNumber}</option>
@@ -212,39 +244,49 @@ export default function ParentInform() {
               <option value="whatsapp-web">WhatsApp Web (Local)</option>
             </Select>
             <InputGroup>
-              <InputLeftAddon children="Parent Number" />
-              <Input placeholder="+92300XXXXXXX" value={toPhone} onChange={(e)=>setToPhone(e.target.value)} readOnly />
+              <InputLeftAddon>Parent Number</InputLeftAddon>
+              <Input
+                placeholder="+92300XXXXXXX"
+                value={toPhone}
+                onChange={(e) => setToPhone(e.target.value)}
+              />
             </InputGroup>
             {historyEnabled && (
-            <Box borderWidth="1px" borderRadius="md" p={4} maxH="360px" overflowY="auto" bg="gray.50">
-              <VStack align="stretch" spacing={3}>
-                {messages.map((m) => {
-                  const isOutbound = m.direction === 'outbound';
-                  return (
-                    <Flex key={m.id} justify={isOutbound ? 'flex-end' : 'flex-start'}>
-                      {!isOutbound && <Avatar name={selectedParent?.primaryName || 'P'} size="sm" mr={2} />}
-                      <Box
-                        maxW="70%"
-                        bg={isOutbound ? 'blue.500' : 'white'}
-                        color={isOutbound ? 'white' : 'gray.800'}
-                        borderRadius="lg"
-                        px={4}
-                        py={2}
-                        boxShadow="sm"
-                      >
-                        <Text fontSize="sm" whiteSpace="pre-wrap">{m.body}</Text>
-                        <Text fontSize="xs" opacity={0.7} mt={1}>
-                          {new Date(m.createdAt).toLocaleString()} • {m.channel || 'whatsapp'}
-                        </Text>
-                      </Box>
-                    </Flex>
-                  );
-                })}
-                {!messages.length && (
-                  <Text fontSize="sm" color="gray.500" textAlign="center">No messages yet. Start the conversation below.</Text>
-                )}
-              </VStack>
-            </Box>
+              <Box borderWidth="1px" borderRadius="md" p={4} maxH="360px" overflowY="auto" bg="gray.50">
+                <VStack align="stretch" spacing={3}>
+                  {messages.map((m) => {
+                    const isOutbound = m.direction === 'outbound';
+                    const isFailed = m.status === 'failed';
+                    return (
+                      <Flex key={m.id} justify={isOutbound ? 'flex-end' : 'flex-start'}>
+                        {!isOutbound && <Avatar name={selectedParent?.primaryName || 'P'} size="sm" mr={2} />}
+                        <Box
+                          maxW="70%"
+                          bg={isOutbound ? (isFailed ? 'red.100' : 'blue.500') : 'white'}
+                          color={isOutbound ? (isFailed ? 'red.700' : 'white') : 'gray.800'}
+                          borderRadius="lg"
+                          px={4}
+                          py={2}
+                          boxShadow="sm"
+                        >
+                          <Text fontSize="sm" whiteSpace="pre-wrap">{m.body}</Text>
+                          <HStack fontSize="xs" opacity={0.7} mt={1} spacing={1}>
+                            <Text>{new Date(m.createdAt).toLocaleString()}</Text>
+                            <Text>•</Text>
+                            <Text>{m.channel || 'whatsapp'}</Text>
+                            {isFailed && <Badge colorScheme="red" fontSize="2xs">failed</Badge>}
+                            {m.status === 'sent' && isOutbound && <Badge colorScheme="green" fontSize="2xs">✓ sent</Badge>}
+                            {!isOutbound && <Badge colorScheme="purple" fontSize="2xs">reply</Badge>}
+                          </HStack>
+                        </Box>
+                      </Flex>
+                    );
+                  })}
+                  {!messages.length && (
+                    <Text fontSize="sm" color="gray.500" textAlign="center">No messages yet. Start the conversation below.</Text>
+                  )}
+                </VStack>
+              </Box>
             )}
             <Textarea placeholder="Type your message" value={message} onChange={(e) => setMessage(e.target.value)} rows={3} />
             <HStack>
