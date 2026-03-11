@@ -15,6 +15,8 @@ const resolveCampusId = (req) => {
         req.headers?.['campus-id'] ??
         req.headers?.['campusid'];
     const requested = headerCampusId ?? req.query?.campusId ?? req.body?.campusId;
+    // Treat 'all' as null/undefined to show data from all campuses
+    if (requested && String(requested).toLowerCase() === 'all') return null;
     const role = req.user?.role;
     const authCampusId = req.user?.campusId;
 

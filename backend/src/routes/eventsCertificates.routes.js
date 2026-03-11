@@ -251,7 +251,9 @@ const createCRUD = (Model) => ({
     getAll: async (req, res) => {
         try {
             const { campusId } = req.query;
-            const where = campusId ? { campusId } : {};
+            // Treat 'all' as null/undefined to show data from all campuses
+            const effectiveCampusId = campusId && String(campusId).toLowerCase() !== 'all' ? campusId : null;
+            const where = effectiveCampusId ? { campusId: effectiveCampusId } : {};
             const items = await Model.findAll({ where });
             res.json(items);
         } catch (error) {
@@ -315,12 +317,15 @@ router.delete('/certificates/:id', certificateCRUD.delete);
 // QR Attendance routes
 router.get('/qr-attendance', authenticate, async (req, res) => {
     try {
-        const campusId = toInt(req.user?.campusId);
-        if (!campusId) return res.status(400).json({ message: 'campusId is required' });
-
         const role = req.user?.role;
+        const isGlobalAdmin = role === 'owner' || role === 'superadmin' || role === 'admin';
+        const campusId = toInt(req.user?.campusId);
+        if (!campusId && !isGlobalAdmin) {
+            return res.status(400).json({ message: 'campusId is required' });
+        }
         const attendanceType = normalizeAttendanceType(req.query?.attendanceType) || undefined;
-        const where = { campusId };
+        const where = {};
+        if (campusId) where.campusId = campusId;
         if (attendanceType) where.attendanceType = attendanceType;
 
         // Self-only for students/teachers

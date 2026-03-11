@@ -273,6 +273,10 @@ export const deleteUser = async (req, res, next) => {
 
 export const register = async (req, res, next) => {
   try {
+    const allowPublic = String(process.env.ALLOW_PUBLIC_REGISTRATION || '').toLowerCase() === 'true';
+    if (!req.user && !allowPublic) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
     // Ensure campus schema changes are applied
     try { await ensureCampusSchema(); } catch (_) { }
 

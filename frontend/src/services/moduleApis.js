@@ -29,7 +29,9 @@ apiClient.interceptors.request.use((config) => {
     if (token) config.headers.Authorization = `Bearer ${token}`;
 
     const selectedCampusId = localStorage.getItem(STORAGE_KEYS.SELECTED_CAMPUS_ID);
-    if (selectedCampusId) config.headers['x-campus-id'] = selectedCampusId;
+    if (selectedCampusId) {
+        config.headers['x-campus-id'] = selectedCampusId;
+    }
 
     return config;
 });
@@ -124,7 +126,10 @@ const toNumberOrNull = (v) => {
 const normalizeCampusId = (params = {}, data = {}) => {
     const fromParams = params?.campusId;
     const fromData = data?.campusId;
-    return fromData ?? fromParams ?? null;
+    const value = fromData ?? fromParams ?? null;
+    // Treat 'all' as null to show data from all campuses
+    if (value && String(value).toLowerCase() === 'all') return null;
+    return value;
 };
 
 const readCollection = (storageKey) => {

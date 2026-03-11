@@ -8,7 +8,7 @@ import {
     VStack, useToast, SimpleGrid, GridItem, Icon, Divider,
     Badge, useColorModeValue
 } from '@chakra-ui/react';
-import { MdSave, MdRefresh, MdVisibility, MdVisibilityOff, MdCheckCircle, MdCancel, MdVpnKey, MdPhone, MdLink, MdSupportAgent, MdCheck } from 'react-icons/md';
+import { MdSave, MdRefresh, MdVisibility, MdVisibilityOff, MdCheckCircle, MdCancel, MdVpnKey, MdPhone, MdLink, MdSupportAgent, MdCheck, MdSettings } from 'react-icons/md';
 import { FaWhatsapp } from 'react-icons/fa';
 import { http } from '../../../../services/http';
 

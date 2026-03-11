@@ -31,8 +31,6 @@ router.get('/status', authController.status);
 
 router.post(
   '/register',
-  authenticate,
-  authorize('admin', 'owner'),
   [
     body('email').isEmail(),
     body('password').isString().isLength({ min: 6 }),
@@ -41,7 +39,7 @@ router.post(
       const v = String(value || '').trim();
       if (!v) return true;
       if (['teacher', 'student', 'driver', 'parent'].includes(v)) return true;
-      if (v === 'admin' && req.user?.role === 'owner') return true;
+      if (v === 'admin' && (req.user?.role === 'owner' || req.user?.role === 'superadmin')) return true;
       throw new Error('Invalid role');
     }),
     body('campusId').optional().isInt({ min: 1 }),

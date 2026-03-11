@@ -8,6 +8,10 @@ const router = Router();
 router.use(authenticate);
 
 const adminRoles = new Set(['admin', 'owner', 'superadmin']);
+const isAdminRole = (role) => {
+    const r = String(role || '').toLowerCase();
+    return r === 'admin' || r === 'owner' || r === 'superadmin';
+};
 
 const resolveCampusId = (req) => {
     const headerCampusId =
@@ -20,7 +24,7 @@ const resolveCampusId = (req) => {
     const role = req.user?.role;
     const authCampusId = req.user?.campusId;
 
-    if (authCampusId && !adminRoles.has(role)) return Number(authCampusId);
+    if (authCampusId && !isAdminRole(role)) return Number(authCampusId);
     const resolved = requested ?? authCampusId;
     if (resolved === '' || resolved === undefined || resolved === null) return null;
     const n = Number(resolved);
@@ -41,9 +45,13 @@ const requireCampusId = (req, res) => {
 const createCRUD = (Model) => ({
     list: async (req, res) => {
         try {
-            const campusId = requireCampusId(req, res);
-            if (!campusId) return;
-            const where = { campusId };
+            const campusId = resolveCampusId(req);
+            const isGlobalAdmin = isAdminRole(req.user?.role);
+            // Allow null campusId for global admins to see all campuses
+            if (!campusId && !isGlobalAdmin) {
+                return res.status(400).json({ error: 'campusId is required' });
+            }
+            const where = campusId ? { campusId } : {};
             const items = await Model.findAll({ where });
             res.json(items);
         } catch (error) {
@@ -200,8 +208,19 @@ const mapPayrollRow = (row) => {
 
 router.get('/payroll', async (req, res) => {
     try {
-        const campusId = requireCampusId(req, res);
-        if (!campusId) return;
+        const campusId = resolveCampusId(req);
+        const isGlobalAdmin = adminRoles.has(req.user?.role);
+
+        if (!campusId && !isGlobalAdmin) {
+            return res.status(400).json({ error: 'campusId is required' });
+        }
+
+        const params = [];
+        let whereSql = '';
+        if (campusId) {
+            params.push(campusId);
+            whereSql = 'WHERE tp.campus_id = $1';
+        }
 
         const { rows } = await query(
             `SELECT
@@ -226,9 +245,9 @@ router.get('/payroll', async (req, res) => {
                 tp.campus_id AS "campusId"
              FROM teacher_payrolls tp
              JOIN teachers t ON t.id = tp.teacher_id
-             WHERE tp.campus_id = $1
+             ${whereSql}
              ORDER BY tp.period_month DESC, t.name ASC`,
-            [campusId]
+            params
         );
 
         res.json(rows.map(mapPayrollRow));
@@ -296,11 +315,20 @@ router.post('/payroll/generate', async (req, res) => {
 
 router.get('/payroll/:id', async (req, res) => {
     try {
-        const campusId = requireCampusId(req, res);
-        if (!campusId) return;
+        const campusId = resolveCampusId(req);
+        const isGlobalAdmin = adminRoles.has(req.user?.role);
+        if (!campusId && !isGlobalAdmin) {
+            return res.status(400).json({ error: 'campusId is required' });
+        }
         const id = Number(req.params.id);
         if (!id) return res.status(400).json({ error: 'Invalid id' });
 
+        const params = [id];
+        let whereSql = 'WHERE tp.id = $1';
+        if (campusId) {
+            params.push(campusId);
+            whereSql += ' AND tp.campus_id = $2';
+        }
         const { rows } = await query(
             `SELECT
                 tp.id,
@@ -324,9 +352,9 @@ router.get('/payroll/:id', async (req, res) => {
                 tp.campus_id AS "campusId"
              FROM teacher_payrolls tp
              JOIN teachers t ON t.id = tp.teacher_id
-             WHERE tp.id = $1 AND tp.campus_id = $2
+             ${whereSql}
              LIMIT 1`,
-            [id, campusId]
+            params
         );
         if (!rows.length) return res.status(404).json({ error: 'Not found' });
         res.json(mapPayrollRow(rows[0]));

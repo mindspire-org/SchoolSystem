@@ -181,7 +181,11 @@ function TeacherList() {
         subjectValues.includes(subjectFilter.toLowerCase());
 
       // Campus filter (safeguard)
-      const matchesCampus = !campusId || !teacher.campusId || String(teacher.campusId) === String(campusId);
+      const matchesCampus =
+        !campusId ||
+        String(campusId).toLowerCase() === 'all' ||
+        !teacher.campusId ||
+        String(teacher.campusId) === String(campusId);
 
       return matchesSearch && matchesDepartment && matchesStatus && matchesSubject && matchesCampus;
     });

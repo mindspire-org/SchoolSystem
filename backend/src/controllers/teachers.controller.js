@@ -155,13 +155,15 @@ export const list = async (req, res, next) => {
     }
     const { page = 1, pageSize = 50, q } = req.query;
     const isGlobalAdmin = req.user?.role === 'owner' || req.user?.role === 'superadmin';
-    const requestedCampusId = req.query.campusId ? Number(req.query.campusId) : undefined;
+    // Handle 'all' string case - treat as undefined to allow all campuses view for global admins
+    const rawCampusId = req.query.campusId;
+    const requestedCampusId = rawCampusId && String(rawCampusId).toLowerCase() !== 'all' ? Number(rawCampusId) : undefined;
     const campusId = isGlobalAdmin
       ? (requestedCampusId ?? req.user?.campusId)
       : req.user?.campusId;
 
-    // Force campus scoping for owner/superadmin: never return all campuses by default
-    if (isGlobalAdmin && !campusId) {
+    // For global admins: if explicitly requesting all (undefined), allow it; otherwise enforce campus scoping
+    if (!isGlobalAdmin && !campusId) {
       return res.json({ rows: [], total: 0, page: Number(page), pageSize: Number(pageSize) });
     }
     const result = await teachers.list({
@@ -410,7 +412,9 @@ export const listAttendance = async (req, res, next) => {
     }
 
     const isGlobalAdmin = req.user?.role === 'owner' || req.user?.role === 'superadmin';
-    const requestedCampusId = req.query.campusId ? Number(req.query.campusId) : undefined;
+    // Handle 'all' string case
+    const rawCampusId = req.query.campusId;
+    const requestedCampusId = rawCampusId && String(rawCampusId).toLowerCase() !== 'all' ? Number(rawCampusId) : undefined;
     const campusId = isGlobalAdmin
       ? (requestedCampusId ?? req.user?.campusId)
       : req.user?.campusId;
@@ -457,13 +461,15 @@ export const listPayrolls = async (req, res, next) => {
     }
 
     const isGlobalAdmin = req.user?.role === 'owner' || req.user?.role === 'superadmin';
-    const requestedCampusId = req.query.campusId ? Number(req.query.campusId) : undefined;
+    // Handle 'all' string case
+    const rawCampusId = req.query.campusId;
+    const requestedCampusId = rawCampusId && String(rawCampusId).toLowerCase() !== 'all' ? Number(rawCampusId) : undefined;
     const campusId = isGlobalAdmin
       ? (requestedCampusId ?? req.user?.campusId)
       : req.user?.campusId;
 
-    // Force campus scoping for owner/superadmin: never return all campuses by default
-    if (isGlobalAdmin && !campusId) {
+    // For global admins: if explicitly requesting all (undefined), allow it; otherwise enforce campus scoping
+    if (!isGlobalAdmin && !campusId) {
       return res.json([]);
     }
     const payrolls = await teachers.listPayrolls({

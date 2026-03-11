@@ -91,12 +91,12 @@ const StudentAttendance = () => {
     return `${year}-${month}-${day}`;
   };
 
-  // Get today's attendance status for a student
-  function getTodayAttendance(studentId) {
-    const today = getLocalDateString();
+  // Get attendance status for a specific date for a student
+  function getAttendanceForDate(studentId, date) {
+    const dateStr = getLocalDateString(date);
 
-    if (attendanceData[studentId] && attendanceData[studentId][today]) {
-      return attendanceData[studentId][today];
+    if (attendanceData[studentId] && attendanceData[studentId][dateStr]) {
+      return attendanceData[studentId][dateStr];
     }
 
     return { status: 'not-marked', checkIn: null, checkOut: null };
@@ -252,7 +252,7 @@ const StudentAttendance = () => {
 
   const displayedStudents = filteredStudents.filter((student) => {
     if (filterValues.attendanceStatus === 'all') return true;
-    const a = getTodayAttendance(student.id);
+    const a = getAttendanceForDate(student.id, selectedDate);
     if (filterValues.attendanceStatus === 'present') {
       return a.status === 'present' || a.status === 'late';
     }
@@ -309,7 +309,7 @@ const StudentAttendance = () => {
     let notMarked = 0;
 
     displayedStudents.forEach((s) => {
-      const status = getTodayAttendance(s.id).status;
+      const status = getAttendanceForDate(s.id, selectedDate).status;
       if (status === 'present' || status === 'late') present += 1;
       else if (status === 'absent') absent += 1;
       else if (status === 'leave') leave += 1;
@@ -317,14 +317,14 @@ const StudentAttendance = () => {
     });
 
     return { present, absent, leave, notMarked };
-  }, [displayedStudents]);
+  }, [displayedStudents, selectedDate]);
 
-  // Export CSV of today's filtered attendance
+  // Export CSV of selected date's filtered attendance
   const exportCSV = () => {
-    const today = getLocalDateString();
+    const dateStr = getLocalDateString(selectedDate);
     const headers = ['Student', 'Roll No.', 'Class', 'Status', 'Check-In', 'Check-Out'];
     const rows = displayedStudents.map((s) => {
-      const a = attendanceData[s.id]?.[today] || { status: 'not-marked', checkIn: '', checkOut: '' };
+      const a = attendanceData[s.id]?.[dateStr] || { status: 'not-marked', checkIn: '', checkOut: '' };
       return [
         '"' + (s.name || '') + '"',
         s.rollNumber || '',
@@ -339,7 +339,7 @@ const StudentAttendance = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `attendance_${today}.csv`;
+    a.download = `attendance_${dateStr}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -377,20 +377,20 @@ const StudentAttendance = () => {
     } catch { }
   };
 
-  // Mark attendance for today
+  // Mark attendance for selected date
   const markAttendance = async (studentId, status, time) => {
-    const today = getLocalDateString();
+    const dateStr = getLocalDateString(selectedDate);
     try {
-      const row = await attendanceApi.create({ studentId, date: today, status, remarks: null });
+      const row = await attendanceApi.create({ studentId, date: dateStr, status, remarks: null });
       const updated = { ...attendanceData };
       if (!updated[studentId]) updated[studentId] = {};
-      if (!updated[studentId][today]) updated[studentId][today] = { status, checkIn: null, checkOut: null };
+      if (!updated[studentId][dateStr]) updated[studentId][dateStr] = { status, checkIn: null, checkOut: null };
       // Prefer server-returned times
-      updated[studentId][today].status = row?.status || status;
+      updated[studentId][dateStr].status = row?.status || status;
       if (time === 'checkIn') {
-        updated[studentId][today].checkIn = row?.checkInTime || updated[studentId][today].checkIn || new Date().toLocaleTimeString();
+        updated[studentId][dateStr].checkIn = row?.checkInTime || updated[studentId][dateStr].checkIn || new Date().toLocaleTimeString();
       } else if (time === 'checkOut') {
-        updated[studentId][today].checkOut = row?.checkOutTime || updated[studentId][today].checkOut || new Date().toLocaleTimeString();
+        updated[studentId][dateStr].checkOut = row?.checkOutTime || updated[studentId][dateStr].checkOut || new Date().toLocaleTimeString();
       }
       setAttendanceData(updated);
       toast({ title: time === 'checkIn' ? 'Checked in' : 'Checked out', status: 'success', duration: 2000 });
@@ -423,9 +423,35 @@ const StudentAttendance = () => {
         </GridItem>
         <GridItem display="flex" justifyContent={{ base: 'flex-start', md: 'flex-end' }}>
           <ButtonGroup spacing={2}>
-            <Button leftIcon={<MdDateRange />} colorScheme="blue" variant="outline">
-              {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-            </Button>
+            <Box position="relative">
+              <Button 
+                leftIcon={<MdDateRange />} 
+                colorScheme="blue" 
+                variant="outline"
+                onClick={() => document.getElementById('attendance-date-picker').showPicker()}
+              >
+                {selectedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </Button>
+              <Input
+                id="attendance-date-picker"
+                type="date"
+                value={getLocalDateString(selectedDate)}
+                onChange={(e) => {
+                  const newDate = new Date(e.target.value);
+                  if (!isNaN(newDate.getTime())) {
+                    setSelectedDate(newDate);
+                  }
+                }}
+                position="absolute"
+                top="0"
+                left="0"
+                opacity="0"
+                width="100%"
+                height="100%"
+                cursor="pointer"
+                zIndex="-1"
+              />
+            </Box>
             <Button leftIcon={<MdDownload />} colorScheme="teal" variant="outline" onClick={exportCSV}>
               Export
             </Button>
@@ -604,7 +630,7 @@ const StudentAttendance = () => {
                     <Th>Student</Th>
                     <Th>Roll No.</Th>
                     <Th>Class</Th>
-                    <Th>Today's Status</Th>
+                    <Th>{selectedDate.toDateString() === new Date().toDateString() ? "Today's Status" : "Status"}</Th>
                     <Th>Check-In</Th>
                     <Th>Check-Out</Th>
                     <Th>Actions</Th>
@@ -612,7 +638,7 @@ const StudentAttendance = () => {
                 </Thead>
                 <Tbody>
                   {displayedStudents.map(student => {
-                    const todayAttendance = getTodayAttendance(student.id);
+                    const todayAttendance = getAttendanceForDate(student.id, selectedDate);
 
                     return (
                       <Tr key={student.id}
