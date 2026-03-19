@@ -4,9 +4,10 @@ import {
     Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, ModalFooter,
     FormControl, FormLabel, Input, Select, useDisclosure, Textarea
 } from '@chakra-ui/react';
-import { MdAdd, MdEmojiEvents } from 'react-icons/md';
+import { MdAdd, MdEmojiEvents, MdEdit, MdDelete } from 'react-icons/md';
 import Card from '../../../../../components/card/Card';
 import { awardApi, hrEmployeesApi } from '../../../../../services/moduleApis';
+import * as campusesApi from '../../../../../services/api/campuses';
 import { useAuth } from '../../../../../contexts/AuthContext';
 
 export default function AwardsList() {
@@ -16,12 +17,16 @@ export default function AwardsList() {
     const [awards, setAwards] = useState([]);
     const [loading, setLoading] = useState(true);
     const [employees, setEmployees] = useState([]);
+    const [campuses, setCampuses] = useState([]);
+    const [editingAward, setEditingAward] = useState(null);
     const [formData, setFormData] = useState({
         awardName: '',
         giftItem: '',
         cashPrice: '',
         employeeName: '',
         employeeId: '',
+        employeeCampusId: '',
+        selectedCampusId: '',
         reason: ''
     });
 
@@ -41,12 +46,27 @@ export default function AwardsList() {
         run();
     }, [campusId]);
 
+    useEffect(() => {
+        const loadCampuses = async () => {
+            try {
+                const res = await campusesApi.getAll();
+                setCampuses(Array.isArray(res) ? res : res?.data || []);
+            } catch (e) {
+                setCampuses([]);
+            }
+        };
+        loadCampuses();
+    }, []);
+
     const fetchAwards = async () => {
         setLoading(true);
         try {
             const data = await awardApi.list({ campusId });
-            setAwards(data);
-        } catch (e) { console.error(e); }
+            setAwards(Array.isArray(data) ? data : []);
+        } catch (e) { 
+            console.error(e);
+            setAwards([]);
+        }
         finally { setLoading(false); }
     };
 
@@ -56,11 +76,72 @@ export default function AwardsList() {
                 toast({ title: 'Please select an employee', status: 'warning' });
                 return;
             }
-            await awardApi.create({ ...formData, campusId, employeeId: Number(formData.employeeId) });
-            toast({ title: 'Award Given', status: 'success' });
+            // Determine campusId: use global campusId if set, otherwise use selected campus from dropdown
+            let awardCampusId = campusId;
+            if (!awardCampusId) {
+                // All Campuses mode
+                if (editingAward) {
+                    // When editing, use the award's existing campusId
+                    awardCampusId = editingAward.campusId;
+                } else {
+                    // When creating, must select a campus from dropdown
+                    awardCampusId = formData.selectedCampusId || formData.employeeCampusId;
+                }
+            }
+            // Convert to number
+            awardCampusId = Number(awardCampusId);
+            if (!awardCampusId || isNaN(awardCampusId)) {
+                toast({ title: 'Please select a campus for this award', status: 'warning' });
+                return;
+            }
+            
+            if (editingAward) {
+                // Update existing award
+                await awardApi.update(editingAward.id, { ...formData, campusId: awardCampusId, employeeId: Number(formData.employeeId) });
+                toast({ title: 'Award updated', status: 'success' });
+            } else {
+                // Create new award
+                await awardApi.create({ ...formData, campusId: awardCampusId, employeeId: Number(formData.employeeId) });
+                toast({ title: 'Award Given', status: 'success' });
+            }
+            
             onClose();
+            setEditingAward(null);
+            setFormData({
+                awardName: '', giftItem: '', cashPrice: '', employeeName: '',
+                employeeId: '', employeeCampusId: '', selectedCampusId: '', reason: ''
+            });
             fetchAwards();
-        } catch (e) { toast({ title: 'Error', status: 'error' }); }
+        } catch (e) { 
+            console.error(e);
+            toast({ title: editingAward ? 'Error updating award' : 'Error giving award', status: 'error' }); 
+        }
+    };
+
+    const handleEdit = (award) => {
+        setEditingAward(award);
+        setFormData({
+            awardName: award.awardName || '',
+            giftItem: award.giftItem || '',
+            cashPrice: award.cashPrice || '',
+            employeeName: award.employeeName || '',
+            employeeId: award.employeeId || '',
+            employeeCampusId: award.campusId || '',
+            selectedCampusId: award.campusId || '',
+            reason: award.reason || ''
+        });
+        onOpen();
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this award?')) return;
+        try {
+            await awardApi.delete(id);
+            toast({ title: 'Award deleted', status: 'success' });
+            fetchAwards();
+        } catch (e) {
+            toast({ title: 'Error deleting award', status: 'error' });
+        }
     };
 
     return (
@@ -72,15 +153,21 @@ export default function AwardsList() {
 
             <Card p='20px'>
                 <Table variant='simple'>
-                    <Thead><Tr><Th>Award Name</Th><Th>Employee</Th><Th>Gift/Cash</Th><Th>Date</Th><Th>Reason</Th></Tr></Thead>
+                    <Thead><Tr><Th>Award Name</Th><Th>Employee</Th><Th>Gift/Cash</Th><Th>Date</Th><Th>Reason</Th><Th>Actions</Th></Tr></Thead>
                     <Tbody>
-                        {loading ? <Tr><Td colSpan={5}>Loading...</Td></Tr> : awards.map(a => (
+                        {loading ? <Tr><Td colSpan={6}>Loading...</Td></Tr> : awards.map(a => (
                             <Tr key={a.id}>
                                 <Td fontWeight='bold'><Flex align='center' gap={2}><MdEmojiEvents color='gold' /> {a.awardName}</Flex></Td>
                                 <Td>{a.employeeName}</Td>
                                 <Td>{a.giftItem} {a.cashPrice ? `($${a.cashPrice})` : ''}</Td>
                                 <Td>{new Date(a.givenDate).toLocaleDateString()}</Td>
                                 <Td>{a.reason}</Td>
+                                <Td>
+                                    <Flex gap={2}>
+                                        <Button size='sm' leftIcon={<MdEdit />} onClick={() => handleEdit(a)}>Edit</Button>
+                                        <Button size='sm' colorScheme='red' leftIcon={<MdDelete />} onClick={() => handleDelete(a.id)}>Delete</Button>
+                                    </Flex>
+                                </Td>
                             </Tr>
                         ))}
                     </Tbody>
@@ -90,7 +177,7 @@ export default function AwardsList() {
             <Modal isOpen={isOpen} onClose={onClose}>
                 <ModalOverlay />
                 <ModalContent>
-                    <ModalHeader>Give New Award</ModalHeader>
+                    <ModalHeader>{editingAward ? 'Edit Award' : 'Give New Award'}</ModalHeader>
                     <ModalCloseButton />
                     <ModalBody>
                         <FormControl mb={3}>
@@ -109,6 +196,7 @@ export default function AwardsList() {
                                         ...p,
                                         employeeId: id,
                                         employeeName: emp?.name || '',
+                                        employeeCampusId: emp?.campusId || emp?.campus_id || '',
                                     }));
                                 }}
                             >
@@ -119,6 +207,22 @@ export default function AwardsList() {
                                 ))}
                             </Select>
                         </FormControl>
+                        {!campusId && (
+                            <FormControl mb={3} isRequired>
+                                <FormLabel>Select Campus for Award</FormLabel>
+                                <Select
+                                    placeholder="Select Campus"
+                                    value={formData.selectedCampusId || ''}
+                                    onChange={(e) => setFormData({ ...formData, selectedCampusId: e.target.value })}
+                                >
+                                    {campuses.map((camp) => (
+                                        <option key={camp.id} value={camp.id}>
+                                            {camp.name || camp.campusName || camp.title}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        )}
                         <FormControl mb={3}>
                             <FormLabel>Gift Item</FormLabel>
                             <Input value={formData.giftItem} onChange={e => setFormData({ ...formData, giftItem: e.target.value })} />

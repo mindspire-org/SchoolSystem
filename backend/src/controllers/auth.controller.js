@@ -273,7 +273,14 @@ export const deleteUser = async (req, res, next) => {
 
 export const register = async (req, res, next) => {
   try {
-    const allowPublic = String(process.env.ALLOW_PUBLIC_REGISTRATION || '').toLowerCase() === 'true';
+    // Check if licensing is already configured (via seed.js)
+    const licensingConfigured = await authService.getSetting('licensing.configured');
+    const isConfigured = String(licensingConfigured?.value || '').toLowerCase() === 'true';
+    
+    // If licensing is already configured via seed, allow registration
+    // Otherwise require authentication or ALLOW_PUBLIC_REGISTRATION env var
+    const allowPublic = isConfigured || String(process.env.ALLOW_PUBLIC_REGISTRATION || '').toLowerCase() === 'true';
+    
     if (!req.user && !allowPublic) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
@@ -282,14 +289,22 @@ export const register = async (req, res, next) => {
 
     const { email, password, name, role, campusId } = req.body;
 
-    const finalCampusId = Number(campusId || req.user?.campusId) || null;
-    if (!finalCampusId) {
+    // Properly handle campusId: empty string should not become 0
+    let finalCampusId = null;
+    if (campusId && String(campusId).trim() !== '') {
+      finalCampusId = Number(campusId);
+    } else if (req.user?.campusId) {
+      finalCampusId = Number(req.user.campusId);
+    }
+    
+    if (!finalCampusId || finalCampusId <= 0) {
       return res.status(400).json({ message: 'Campus selection is mandatory' });
     }
 
     // Validate role is allowed
     const baseAllowedRoles = ['student', 'teacher', 'driver', 'parent'];
-    const canCreateAdmin = req.user?.role === 'owner' || req.user?.role === 'superadmin';
+    // If licensing is configured, treat as owner/superadmin for first-time setup
+    const canCreateAdmin = isConfigured || req.user?.role === 'owner' || req.user?.role === 'superadmin';
     const allowedRoles = canCreateAdmin ? [...baseAllowedRoles, 'admin'] : baseAllowedRoles;
     if (role && !allowedRoles.includes(role)) {
       return res.status(400).json({

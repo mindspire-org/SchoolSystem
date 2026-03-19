@@ -45,9 +45,12 @@ import IconBox from '../../../../components/icons/IconBox';
 import StatCard from '../../../../components/card/StatCard';
 import * as transportApi from '../../../../services/api/transport';
 import * as driversApi from '../../../../services/api/drivers';
+import { campusesApi } from '../../../../services/api';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 
 export default function BusManagement() {
+  const { campusId } = useAuth();
   const toast = useToast();
 
   const [search, setSearch] = useState('');
@@ -56,10 +59,11 @@ export default function BusManagement() {
   const [rows, setRows] = useState([]);
   const [routesOptions, setRoutesOptions] = useState([]);
   const [driversOptions, setDriversOptions] = useState([]);
+  const [campuses, setCampuses] = useState([]);
   const [selected, setSelected] = useState(null);
   const viewDisc = useDisclosure();
   const editDisc = useDisclosure();
-  const [form, setForm] = useState({ backendId: null, id: '', plate: '', capacity: 0, driver: '', driverId: '', routeId: '', status: 'Active', lastService: '' });
+  const [form, setForm] = useState({ backendId: null, id: '', plate: '', capacity: 0, driver: '', driverId: '', routeId: '', status: 'Active', lastService: '', campusId: '' });
   const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
 
   const normalizeBus = (bus) => {
@@ -120,6 +124,18 @@ export default function BusManagement() {
   }, [editDisc.isOpen, driversOptions, form.backendId, form.driver, form.driverId]);
 
   useEffect(() => {
+    const loadCampuses = async () => {
+      try {
+        const res = await campusesApi.list({ pageSize: 100 });
+        setCampuses(res?.rows || []);
+      } catch (e) {
+        console.error('Failed to load campuses', e);
+      }
+    };
+    loadCampuses();
+  }, []);
+
+  useEffect(() => {
     const loadRoutes = async () => {
       try {
         const data = await transportApi.listRoutes();
@@ -133,7 +149,7 @@ export default function BusManagement() {
   useEffect(() => {
     const loadDrivers = async () => {
       try {
-        const data = await driversApi.list({ status: 'active', pageSize: 200 });
+        const data = await driversApi.list({ status: 'active', pageSize: 100 });
         const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
         setDriversOptions(items.map(d => ({ id: d.id, name: d.name, busId: d.busId || null })));
       } catch (e) {
@@ -402,6 +418,16 @@ export default function BusManagement() {
                 <option value='maintenance'>Maintenance</option>
               </Select>
             </FormControl>
+            {!campusId && (
+              <FormControl mb={3} isRequired>
+                <FormLabel>Campus</FormLabel>
+                <Select placeholder='Select campus' value={form.campusId} onChange={(e) => setForm(f => ({ ...f, campusId: e.target.value }))}>
+                  {campuses.map(c => (
+                    <option key={c.id} value={c.id}>{c.name || c.campusName || c.title}</option>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
             <FormControl>
               <FormLabel>Last Service</FormLabel>
               <Input type='date' value={form.lastService} onChange={(e) => setForm(f => ({ ...f, lastService: e.target.value }))} />
@@ -432,6 +458,7 @@ export default function BusManagement() {
                     capacity: typeof form.capacity === 'number' ? form.capacity : null,
                     lastService: form.lastService || null,
                     routeId: form.routeId || undefined,
+                    campusId: !campusId && form.campusId ? Number(form.campusId) : campusId,
                   };
 
                   let busIdForDriver = null;

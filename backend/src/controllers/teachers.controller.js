@@ -114,9 +114,16 @@ const normalizeTeacherPayload = (raw = {}, { partial = false } = {}) => {
   assignNumber('baseSalary');
   assignNumber('allowances');
   assignNumber('deductions');
+  assignNumber('campusId');
 
   assignArray('subjects');
   assignArray('classes');
+
+  // Handle campusId if not already assigned
+  if (raw.campusId !== undefined && data.campusId === undefined) {
+    const cid = Number(raw.campusId);
+    if (!isNaN(cid) && cid > 0) data.campusId = cid;
+  }
 
   const avatar = coerceString(raw.avatar) ?? coerceString(raw.photo) ?? coerceString(raw.photoUrl) ?? coerceString(raw.profilePhoto) ?? coerceString(raw.profilePhotoUrl);
   if (avatar !== undefined) data.avatar = avatar;
@@ -270,7 +277,7 @@ export const create = async (req, res, next) => {
           passwordHash,
           role: 'teacher',
           name: payload.name || username,
-          campusId: req.user?.campusId || payload.campusId
+          campusId: payload.campusId || req.user?.campusId
         });
         credentials = { username, password };
       }
@@ -447,6 +454,57 @@ export const saveAttendance = async (req, res, next) => {
       recordedBy: req.user?.id,
     });
     return res.json({ date: req.body.date, records });
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getMonthlyAttendance = async (req, res, next) => {
+  try {
+    const teacherId = Number(req.params.id);
+    const { startDate, endDate, month } = req.query;
+    
+    // Determine date range
+    let start = startDate;
+    let end = endDate;
+    
+    if (month && !start && !end) {
+      // If month provided (YYYY-MM), calculate start and end dates
+      const [year, monthNum] = month.split('-');
+      start = `${year}-${monthNum}-01`;
+      end = new Date(Number(year), Number(monthNum), 0).toISOString().split('T')[0];
+    }
+    
+    if (!start || !end) {
+      // Default to current month if no dates provided
+      const now = new Date();
+      const year = now.getFullYear();
+      const monthNum = String(now.getMonth() + 1).padStart(2, '0');
+      start = `${year}-${monthNum}-01`;
+      end = new Date(year, now.getMonth() + 1, 0).toISOString().split('T')[0];
+    }
+    
+    const isGlobalAdmin = req.user?.role === 'owner' || req.user?.role === 'superadmin';
+    // Handle 'all' string case
+    const rawCampusId = req.query.campusId;
+    const requestedCampusId = rawCampusId && String(rawCampusId).toLowerCase() !== 'all' ? Number(rawCampusId) : undefined;
+    const campusId = isGlobalAdmin
+      ? (requestedCampusId ?? req.user?.campusId)
+      : req.user?.campusId;
+    
+    const records = await teachers.getAttendanceByDateRange({
+      teacherId,
+      startDate: start,
+      endDate: end,
+      campusId
+    });
+    
+    return res.json({ 
+      teacherId, 
+      startDate: start, 
+      endDate: end, 
+      records 
+    });
   } catch (e) {
     next(e);
   }

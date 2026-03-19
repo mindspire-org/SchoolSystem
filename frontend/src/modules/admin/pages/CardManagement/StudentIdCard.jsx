@@ -322,8 +322,8 @@ export default function StudentIdCard() {
                     body{margin:0;padding:14px;background:#fff}
                     .sheet{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}
                     .sheet.single{justify-content:center;align-items:center;width:100%;min-height:273mm}
-                    .idcard{width:340px;min-height:215px;height:auto;border-radius:14px;overflow:hidden;position:relative;background:linear-gradient(160deg,var(--accentSoft),#fff 62%);box-shadow:0 10px 30px rgba(17,24,39,.12);border:1.5px solid rgba(17,24,39,.12);display:flex;flex-direction:column}
-                    .idcard.tall{min-height:300px}
+                    .idcard{width:86mm;height:54mm;border-radius:10px;overflow:hidden;position:relative;background:linear-gradient(160deg,var(--accentSoft),#fff 62%);box-shadow:0 10px 30px rgba(17,24,39,.12);border:1.5px solid rgba(17,24,39,.12);display:flex;flex-direction:column}
+                    .idcard.tall{height:64mm}
                     .idcard:before{content:'';position:absolute;inset:-40% -40% auto auto;width:240px;height:240px;background:var(--accentSoft);transform:rotate(25deg)}
                     .top{position:relative;display:flex;justify-content:space-between;align-items:center;padding:14px 14px 10px;background:linear-gradient(135deg,var(--accentMid) 0%, var(--accentMid) 55%, #111827 100%)}
                     .brand{display:flex;align-items:center;gap:10px;color:#fff}
@@ -357,8 +357,8 @@ export default function StudentIdCard() {
                     .sigLine{height:20px;border-bottom:2px solid rgba(17,24,39,.9)}
                     .sigNote{font-size:9px;color:#4b5563;margin-top:6px;font-weight:800}
 
-                    .idcard.layout-vertical{width:240px;min-height:360px;height:auto;border-radius:18px}
-                    .idcard.layout-vertical.tall{min-height:440px}
+                    .idcard.layout-vertical{width:54mm;height:86mm;border-radius:12px}
+                    .idcard.layout-vertical.tall{height:100mm}
                     .idcard.layout-vertical:before{inset:-55% -70% auto auto;width:280px;height:280px;transform:rotate(35deg)}
                     .idcard.layout-vertical .top{padding:14px 14px 12px}
                     .idcard.layout-vertical .brandName{font-size:13px}
@@ -377,13 +377,14 @@ export default function StudentIdCard() {
 
                     .idcard.no-photo .mid{gap:0}
 
-                    @page { size: A4; margin: 12mm; }
+                    @page { size: A4 landscape; margin: 8mm; }
                     @media print{
                         html,body{margin:0;padding:0}
-                        body{padding:0}
-                        .sheet{gap:0}
+                        body{padding:8mm}
+                        .sheet{gap:6mm;display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:flex-start}
                         .sheet.single{min-height:auto;height:auto;width:100%;justify-content:center;align-items:center}
-                        .idcard{page-break-inside:avoid;break-inside:avoid}
+                        .idcard{page-break-inside:avoid;break-inside:avoid;width:86mm;height:54mm;box-shadow:none;border:1px solid rgba(17,24,39,.2)}
+                        .idcard.tall{height:64mm}
                         *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
                     }
                 </style>

@@ -20,6 +20,7 @@ export default function VisitorLog() {
     const { isOpen, onOpen, onClose } = useDisclosure();
     const [form, setForm] = useState({ id: '', date: '', name: '', contact: '', idType: 'CNIC', idNumber: '', purpose: '', personToMeet: '', checkIn: '', checkOut: '' });
     const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
+    const tableHoverBg = useColorModeValue('gray.50', 'gray.700');
 
     useEffect(() => {
         fetchVisitors();
@@ -109,7 +110,7 @@ export default function VisitorLog() {
                             ) : visitors.length === 0 ? (
                                 <Tr><Td colSpan={8} textAlign="center">No visitor logs found</Td></Tr>
                             ) : visitors.filter(v => v.name?.toLowerCase().includes(search.toLowerCase())).map((visitor) => (
-                                <Tr key={visitor.id} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
+                                <Tr key={visitor.id} _hover={{ bg: tableHoverBg }}>
                                     <Td>{visitor.date}</Td>
                                     <Td><Text fontWeight="600">{visitor.name}</Text></Td>
                                     <Td>{visitor.contact}</Td>

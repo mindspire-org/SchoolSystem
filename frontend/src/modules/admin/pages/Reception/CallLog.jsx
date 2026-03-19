@@ -20,6 +20,7 @@ export default function CallLog() {
     const { isOpen, onOpen, onClose } = useDisclosure();
     const [form, setForm] = useState({ id: '', date: '', time: '', callerName: '', contact: '', purpose: '', notes: '', followUp: '' });
     const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
+    const tableHoverBg = useColorModeValue('gray.50', 'gray.700');
 
     useEffect(() => {
         fetchCalls();
@@ -108,7 +109,7 @@ export default function CallLog() {
                             ) : calls.length === 0 ? (
                                 <Tr><Td colSpan={7} textAlign="center">No call logs found</Td></Tr>
                             ) : calls.filter(c => c.callerName?.toLowerCase().includes(search.toLowerCase())).map((call) => (
-                                <Tr key={call.id} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
+                                <Tr key={call.id} _hover={{ bg: tableHoverBg }}>
                                     <Td>{call.date}</Td>
                                     <Td>{call.time}</Td>
                                     <Td><Text fontWeight="600">{call.callerName}</Text></Td>

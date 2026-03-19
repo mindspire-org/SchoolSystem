@@ -20,6 +20,7 @@ export default function PostalRecord() {
     const { isOpen, onOpen, onClose } = useDisclosure();
     const [form, setForm] = useState({ id: '', date: '', type: 'Incoming', sender: '', recipient: '', subject: '', trackingNumber: '', status: 'Pending' });
     const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
+    const tableHoverBg = useColorModeValue('gray.50', 'gray.700');
 
     useEffect(() => {
         fetchRecords();
@@ -124,7 +125,7 @@ export default function PostalRecord() {
                             ) : records.length === 0 ? (
                                 <Tr><Td colSpan={7} textAlign="center">No postal records found</Td></Tr>
                             ) : records.filter(r => r.subject?.toLowerCase().includes(search.toLowerCase())).map((record) => (
-                                <Tr key={record.id} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
+                                <Tr key={record.id} _hover={{ bg: tableHoverBg }}>
                                     <Td>{record.date}</Td>
                                     <Td><Badge colorScheme={record.type === 'Incoming' ? 'blue' : 'purple'}>{record.type}</Badge></Td>
                                     <Td>{record.sender}</Td>

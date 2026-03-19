@@ -606,12 +606,6 @@ export const getSMSRoutes = () => {
           path: '/reception/complaint',
           component: lazy(() => import('./modules/admin/pages/Reception/Complaint')),
         },
-        {
-          name: 'Config Reception',
-          layout: '/admin',
-          path: '/reception/config',
-          component: lazy(() => import('./modules/admin/pages/Reception/ConfigReception')),
-        },
       ],
     },
 

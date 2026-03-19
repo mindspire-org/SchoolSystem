@@ -60,11 +60,14 @@ const createCRUD = (Model) => ({
     },
     get: async (req, res) => {
         try {
-            const campusId = requireCampusId(req, res);
-            if (!campusId) return;
+            const campusId = resolveCampusId(req);
+            const isGlobalAdmin = isAdminRole(req.user?.role);
+            if (!campusId && !isGlobalAdmin) {
+                return res.status(400).json({ error: 'campusId is required' });
+            }
             const item = await Model.findByPk(req.params.id);
             if (!item) return res.status(404).json({ error: 'Not found' });
-            if (String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
+            if (campusId && String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
             res.json(item);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -72,22 +75,36 @@ const createCRUD = (Model) => ({
     },
     create: async (req, res) => {
         try {
-            const campusId = requireCampusId(req, res);
-            if (!campusId) return;
-            const item = await Model.create({ ...req.body, campusId });
+            const campusId = resolveCampusId(req);
+            const isGlobalAdmin = isAdminRole(req.user?.role);
+            console.log('Award create - campusId from resolve:', campusId, 'body.campusId:', req.body.campusId, 'isGlobalAdmin:', isGlobalAdmin);
+            if (!campusId && !isGlobalAdmin) {
+                return res.status(400).json({ error: 'campusId is required' });
+            }
+            // Use campusId from body if provided (for All Campuses mode), otherwise use resolved campusId
+            const finalCampusId = Number(req.body.campusId) || campusId;
+            console.log('Award create - finalCampusId:', finalCampusId);
+            if (!finalCampusId) {
+                return res.status(400).json({ error: 'campusId is required' });
+            }
+            const item = await Model.create({ ...req.body, campusId: finalCampusId });
             res.status(201).json(item);
         } catch (error) {
+            console.error('Award create error:', error.message, error.stack);
             res.status(500).json({ error: error.message });
         }
     },
     update: async (req, res) => {
         try {
-            const campusId = requireCampusId(req, res);
-            if (!campusId) return;
+            const campusId = resolveCampusId(req);
+            const isGlobalAdmin = isAdminRole(req.user?.role);
+            if (!campusId && !isGlobalAdmin) {
+                return res.status(400).json({ error: 'campusId is required' });
+            }
             const item = await Model.findByPk(req.params.id);
             if (!item) return res.status(404).json({ error: 'Not found' });
-            if (String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
-            await item.update({ ...req.body, campusId });
+            if (campusId && String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
+            await item.update({ ...req.body, campusId: item.campusId });
             res.json(item);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -95,11 +112,14 @@ const createCRUD = (Model) => ({
     },
     delete: async (req, res) => {
         try {
-            const campusId = requireCampusId(req, res);
-            if (!campusId) return;
+            const campusId = resolveCampusId(req);
+            const isGlobalAdmin = isAdminRole(req.user?.role);
+            if (!campusId && !isGlobalAdmin) {
+                return res.status(400).json({ error: 'campusId is required' });
+            }
             const item = await Model.findByPk(req.params.id);
             if (!item) return res.status(404).json({ error: 'Not found' });
-            if (String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
+            if (campusId && String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
             await item.destroy();
             res.json({ message: 'Deleted successfully' });
         } catch (error) {
@@ -258,8 +278,12 @@ router.get('/payroll', async (req, res) => {
 
 router.post('/payroll/generate', async (req, res) => {
     try {
-        const campusId = requireCampusId(req, res);
-        if (!campusId) return;
+        const campusId = resolveCampusId(req);
+        const isGlobalAdmin = adminRoles.has(req.user?.role);
+        // Allow null campusId for global admins to generate payroll for all campuses
+        if (!campusId && !isGlobalAdmin) {
+            return res.status(400).json({ error: 'campusId is required' });
+        }
 
         const { month, year } = req.body || {};
         const y = Number(year);
@@ -269,15 +293,23 @@ router.post('/payroll/generate', async (req, res) => {
         const periodMonth = `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-01`;
         const createdBy = req.user?.id ?? null;
 
+        // Build query to get teachers - filter by campusId only if provided
+        let teacherWhereSql = '';
+        const teacherParams = [];
+        if (campusId) {
+            teacherWhereSql = 'WHERE campus_id = $1';
+            teacherParams.push(campusId);
+        }
+
         const { rows: teacherRows } = await query(
-            `SELECT id, name,
+            `SELECT id, name, campus_id,
                     COALESCE(base_salary, 0)::numeric AS base_salary,
                     COALESCE(allowances, 0)::numeric AS allowances,
                     COALESCE(deductions, 0)::numeric AS deductions
                FROM teachers
-              WHERE campus_id = $1
+              ${teacherWhereSql}
               ORDER BY id ASC`,
-            [campusId]
+            teacherParams
         );
 
         if (!teacherRows.length) {
@@ -290,6 +322,8 @@ router.post('/payroll/generate', async (req, res) => {
             const deductions = Number(t.deductions || 0);
             const bonuses = 0;
             const total = baseSalary + allowances + bonuses - deductions;
+            // Use teacher's campus_id for All Campuses mode, otherwise use the filter campusId
+            const teacherCampusId = campusId || t.campus_id;
 
             await query(
                 `INSERT INTO teacher_payrolls
@@ -303,7 +337,7 @@ router.post('/payroll/generate', async (req, res) => {
                     bonuses = EXCLUDED.bonuses,
                     total_amount = EXCLUDED.total_amount,
                     updated_at = NOW()`,
-                [Number(t.id), periodMonth, baseSalary, allowances, deductions, bonuses, total, createdBy, campusId]
+                [Number(t.id), periodMonth, baseSalary, allowances, deductions, bonuses, total, createdBy, teacherCampusId]
             );
         }
 
@@ -414,24 +448,26 @@ router.delete('/advance-salary/:id', advanceSalaryCRUD.delete);
 
 router.post('/advance-salary/:id/approve', async (req, res) => {
     try {
-        const campusId = requireCampusId(req, res);
-        if (!campusId) return;
+        const campusId = resolveCampusId(req);
+        const isGlobalAdmin = isAdminRole(req.user?.role);
+        if (!campusId && !isGlobalAdmin) return res.status(400).json({ error: 'campusId is required' });
         const item = await AdvanceSalary.findByPk(req.params.id);
         if (!item) return res.status(404).json({ error: 'Not found' });
-        if (String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
-        await item.update({ status: 'Approved', approvedBy: req.body.approvedBy, campusId });
+        if (campusId && String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
+        await item.update({ status: 'Approved', approvedBy: req.body.approvedBy, campusId: item.campusId });
         res.json({ message: 'Approved' });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.post('/advance-salary/:id/reject', async (req, res) => {
     try {
-        const campusId = requireCampusId(req, res);
-        if (!campusId) return;
+        const campusId = resolveCampusId(req);
+        const isGlobalAdmin = isAdminRole(req.user?.role);
+        if (!campusId && !isGlobalAdmin) return res.status(400).json({ error: 'campusId is required' });
         const item = await AdvanceSalary.findByPk(req.params.id);
         if (!item) return res.status(404).json({ error: 'Not found' });
-        if (String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
-        await item.update({ status: 'Rejected', rejectionReason: req.body.reason, campusId });
+        if (campusId && String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
+        await item.update({ status: 'Rejected', rejectionReason: req.body.reason, campusId: item.campusId });
         res.json({ message: 'Rejected' });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -446,24 +482,26 @@ router.delete('/leave/:id', leaveCRUD.delete);
 
 router.post('/leave/:id/approve', async (req, res) => {
     try {
-        const campusId = requireCampusId(req, res);
-        if (!campusId) return;
+        const campusId = resolveCampusId(req);
+        const isGlobalAdmin = adminRoles.has(req.user?.role);
+        if (!campusId && !isGlobalAdmin) return res.status(400).json({ error: 'campusId is required' });
         const item = await Leave.findByPk(req.params.id);
         if (!item) return res.status(404).json({ error: 'Not found' });
-        if (String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
-        await item.update({ status: 'Approved', approvedBy: req.body.approvedBy, campusId });
+        if (campusId && String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
+        await item.update({ status: 'Approved', approvedBy: req.body.approvedBy, campusId: item.campusId });
         res.json({ message: 'Approved' });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.post('/leave/:id/reject', async (req, res) => {
     try {
-        const campusId = requireCampusId(req, res);
-        if (!campusId) return;
+        const campusId = resolveCampusId(req);
+        const isGlobalAdmin = adminRoles.has(req.user?.role);
+        if (!campusId && !isGlobalAdmin) return res.status(400).json({ error: 'campusId is required' });
         const item = await Leave.findByPk(req.params.id);
         if (!item) return res.status(404).json({ error: 'Not found' });
-        if (String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
-        await item.update({ status: 'Rejected', rejectionReason: req.body.reason, campusId });
+        if (campusId && String(item.campusId) !== String(campusId)) return res.status(404).json({ error: 'Not found' });
+        await item.update({ status: 'Rejected', rejectionReason: req.body.reason, campusId: item.campusId });
         res.json({ message: 'Rejected' });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });

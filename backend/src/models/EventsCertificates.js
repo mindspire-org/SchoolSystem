@@ -13,7 +13,7 @@ export default (sequelize) => {
         organizer: { type: DataTypes.STRING },
         budget: { type: DataTypes.DECIMAL(10, 2) },
         photos: { type: DataTypes.ARRAY(DataTypes.STRING), defaultValue: [] },
-        campusId: { type: DataTypes.INTEGER, allowNull: false },
+        campusId: { type: DataTypes.INTEGER, allowNull: true },
     }, { tableName: 'events', timestamps: true });
 
     const Certificate = sequelize.define('Certificate', {

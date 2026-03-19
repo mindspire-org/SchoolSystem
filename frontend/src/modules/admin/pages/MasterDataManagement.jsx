@@ -409,6 +409,7 @@ const ClassesSectionsManager = () => {
 
 const DesignationsManager = () => {
     const [data, setData] = useState([]);
+    const [departments, setDepartments] = useState([]);
     const { isOpen, onOpen, onClose } = useDisclosure();
     const [editing, setEditing] = useState(null);
     const [form, setForm] = useState({ title: '', department: '', isShared: true });
@@ -423,7 +424,19 @@ const DesignationsManager = () => {
         }
     };
 
-    useEffect(() => { load(); }, []);
+    const loadDepartments = async () => {
+        try {
+            const res = await masterDataApi.getDepartments();
+            setDepartments(res.data || res);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    useEffect(() => { 
+        load(); 
+        loadDepartments();
+    }, []);
 
     const handleSave = async () => {
         try {
@@ -489,7 +502,17 @@ const DesignationsManager = () => {
                         </FormControl>
                         <FormControl mb='3'>
                             <FormLabel>Department</FormLabel>
-                            <Input value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} />
+                            <Select 
+                                value={form.department} 
+                                onChange={e => setForm({ ...form, department: e.target.value })}
+                                placeholder="Select Department"
+                            >
+                                {departments.map((dept) => (
+                                    <option key={dept.id} value={dept.name || dept.title || dept.department}>
+                                        {dept.name || dept.title || dept.department}
+                                    </option>
+                                ))}
+                            </Select>
                         </FormControl>
                         <FormControl mb='3' display='flex' alignItems='center'>
                             <FormLabel htmlFor='isSharedDes' mb='0'>

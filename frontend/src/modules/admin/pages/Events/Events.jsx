@@ -48,7 +48,19 @@ export default function Events() {
 
     const handleSave = async () => {
         try {
-            const selectedCampusId = form.campusId || campusId;
+            // Require campus selection when in All Campuses mode
+            if (!campusId && !form.campusId) {
+                toast({
+                    title: 'Campus Required',
+                    description: 'Please select a campus for this event',
+                    status: 'warning',
+                    duration: 3000,
+                    isClosable: true,
+                });
+                return;
+            }
+            
+            const selectedCampusId = form.campusId === 'all' ? 0 : (form.campusId || campusId);
             const payload = { ...form, campusId: selectedCampusId };
             delete payload.id;
             if (payload.date && /^\d{4}-\d{2}-\d{2}$/.test(String(payload.date))) {
@@ -100,7 +112,7 @@ export default function Events() {
                     <Heading as="h3" size="lg" mb={1}>Event Management</Heading>
                     <Text color={textColorSecondary}>Create and manage school events</Text>
                 </Box>
-                <Button leftIcon={<MdAdd />} colorScheme="blue" onClick={() => { setForm({ id: '', title: '', date: '', category: 'Academic', campusId: campusId || null, participants: '', description: '', status: 'Planned' }); onOpen(); }}>
+                <Button leftIcon={<MdAdd />} colorScheme="blue" onClick={() => { setForm({ id: '', title: '', date: '', category: 'Academic', campusId: campusId || '', participants: '', description: '', status: 'Planned' }); onOpen(); }}>
                     Create Event
                 </Button>
             </Flex>
@@ -153,7 +165,7 @@ export default function Events() {
                                     <Td><Text fontWeight="600">{event.title}</Text></Td>
                                     <Td>{event.date}</Td>
                                     <Td>{event.category}</Td>
-                                    <Td>{(campuses.find(c => String(c.id) === String(event.campusId)) || {}).name || '—'}</Td>
+                                    <Td>{event.campusId === 0 ? 'All Campuses' : ((campuses.find(c => String(c.id) === String(event.campusId)) || {}).name || '—')}</Td>
                                     <Td>{event.participants}</Td>
                                     <Td><Badge colorScheme={event.status === 'Completed' ? 'green' : event.status === 'Upcoming' ? 'orange' : 'blue'}>{event.status}</Badge></Td>
                                     <Td>
@@ -191,17 +203,19 @@ export default function Events() {
                                 <option value="Other">Other</option>
                             </Select>
                         </FormControl>
-                        <FormControl mb={3}>
+                        <FormControl mb={3} isRequired={!campusId}>
                             <FormLabel>Campus</FormLabel>
                             <Select
                                 placeholder="Select campus"
                                 value={form.campusId || ''}
-                                onChange={(e) => setForm({ ...form, campusId: e.target.value ? Number(e.target.value) : null })}
+                                onChange={(e) => setForm({ ...form, campusId: e.target.value === 'all' ? 'all' : e.target.value ? Number(e.target.value) : null })}
                             >
+                                <option value="all">All Campuses</option>
                                 {campuses.map(c => (
                                     <option key={c.id} value={c.id}>{c.name}</option>
                                 ))}
                             </Select>
+                            {!campusId && <FormHelperText color="orange.500">Please select a campus (required in All Campuses mode)</FormHelperText>}
                         </FormControl>
                         <FormControl mb={3}>
                             <FormLabel>Expected Participants</FormLabel>

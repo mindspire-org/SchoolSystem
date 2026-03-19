@@ -93,7 +93,11 @@ apiClient.interceptors.response.use(
 // Generic CRUD operations factory
 const createCRUDApi = (endpoint) => ({
     list: async (params = {}) => {
-        const response = await apiClient.get(endpoint, { params });
+        const normalized = { ...params };
+        if (normalized?.campusId && String(normalized.campusId).toLowerCase() === 'all') {
+            normalized.campusId = null;
+        }
+        const response = await apiClient.get(endpoint, { params: normalized });
         return response.data;
     },
 
@@ -103,12 +107,20 @@ const createCRUDApi = (endpoint) => ({
     },
 
     create: async (data) => {
-        const response = await apiClient.post(endpoint, data);
+        const normalized = { ...(data || {}) };
+        if (normalized?.campusId && String(normalized.campusId).toLowerCase() === 'all') {
+            normalized.campusId = null;
+        }
+        const response = await apiClient.post(endpoint, normalized);
         return response.data;
     },
 
     update: async (id, data) => {
-        const response = await apiClient.put(`${endpoint}/${id}`, data);
+        const normalized = { ...(data || {}) };
+        if (normalized?.campusId && String(normalized.campusId).toLowerCase() === 'all') {
+            normalized.campusId = null;
+        }
+        const response = await apiClient.put(`${endpoint}/${id}`, normalized);
         return response.data;
     },
 
@@ -321,7 +333,8 @@ export const qrAttendanceApi = createCRUDApi('/events-certificates/qr-attendance
 export const payrollApi = {
     ...createCRUDApi('/hr/payroll'),
     generatePayroll: async (month, year, campusId) => {
-        const response = await apiClient.post('/hr/payroll/generate', { month, year, campusId });
+        const effectiveCampusId = campusId && String(campusId).toLowerCase() === 'all' ? null : campusId;
+        const response = await apiClient.post('/hr/payroll/generate', { month, year, campusId: effectiveCampusId });
         return response.data;
     },
     getSalarySlip: async (id) => {
@@ -332,8 +345,8 @@ export const payrollApi = {
 
 export const advanceSalaryApi = {
     ...createCRUDApi('/hr/advance-salary'),
-    approve: async (id) => {
-        const response = await apiClient.post(`/hr/advance-salary/${id}/approve`);
+    approve: async (id, approvedBy) => {
+        const response = await apiClient.post(`/hr/advance-salary/${id}/approve`, { approvedBy });
         return response.data;
     },
     reject: async (id, reason) => {

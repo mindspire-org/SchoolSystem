@@ -153,6 +153,10 @@ const AddTeacher = () => {
     if (!formData.campusId && activeCampusId) {
       setFormData(prev => ({ ...prev, campusId: activeCampusId }));
     }
+    // If no campus is selected globally, ensure campusId is empty to force selection
+    if (!activeCampusId && formData.campusId === activeCampusId) {
+      setFormData(prev => ({ ...prev, campusId: '' }));
+    }
   }, [formData.campusId, activeCampusId]);
 
   // Color mode values
@@ -435,6 +439,11 @@ const AddTeacher = () => {
 
     if (subjects.length === 0) newErrors.subjects = 'At least one subject is required';
     if (classes.length === 0) newErrors.classes = 'At least one class is required';
+    
+    // Require campus selection when in All Campuses mode
+    if (!activeCampusId && !formData.campusId) {
+      newErrors.campusId = 'Please select a campus (required in All Campuses mode)';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -460,6 +469,10 @@ const AddTeacher = () => {
       if (!formData.employeeId.trim()) e.employeeId = 'Employee ID is required';
       if (!formData.department.trim()) e.department = 'Department is required';
       if (!formData.designation.trim()) e.designation = 'Designation is required';
+      // Require campus selection when in All Campuses mode
+      if (!activeCampusId && !formData.campusId) {
+        e.campusId = 'Please select a campus (required in All Campuses mode)';
+      }
       setErrors((prev) => ({ ...prev, ...e }));
       return Object.keys(e).length === 0;
     }

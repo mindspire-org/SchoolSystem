@@ -800,6 +800,41 @@ export const getAttendanceByDate = async ({ date, teacherId, campusId }) => {
   return rows.map(mapAttendanceRow);
 };
 
+export const getAttendanceByDateRange = async ({ teacherId, startDate, endDate, campusId }) => {
+  const params = [startDate, endDate];
+  let filter = '';
+  
+  if (teacherId) {
+    params.push(teacherId);
+    filter += ` AND ta.teacher_id = $${params.length}`;
+  }
+  if (campusId) {
+    params.push(campusId);
+    filter += ` AND t.campus_id = $${params.length}`;
+  }
+  
+  const { rows } = await query(
+    `SELECT 
+       ta.attendance_date AS date,
+       ta.status,
+       ta.check_in_time AS "checkInTime",
+       ta.check_out_time AS "checkOutTime",
+       ta.remarks,
+       t.name AS "teacherName",
+       t.employee_id AS "employeeId",
+       t.department
+     FROM teacher_attendance ta
+     JOIN teachers t ON t.id = ta.teacher_id
+     WHERE ta.attendance_date >= $1 
+       AND ta.attendance_date <= $2
+       ${filter}
+     ORDER BY ta.attendance_date DESC`,
+    params
+  );
+  
+  return rows;
+};
+
 export const upsertAttendanceEntries = async ({ date, entries = [], recordedBy }) => {
   if (!entries.length) return await getAttendanceByDate({ date });
 

@@ -20,6 +20,7 @@ export default function AdmissionEnquiry() {
     const { isOpen, onOpen, onClose } = useDisclosure();
     const [form, setForm] = useState({ id: '', date: '', studentId: '', studentName: '', parentName: '', contact: '', email: '', class: '', status: 'Pending', notes: '', followUpDate: '' });
     const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
+    const tableHoverBg = useColorModeValue('gray.50', 'gray.700');
 
     useEffect(() => {
         fetchEnquiries();
@@ -129,7 +130,7 @@ export default function AdmissionEnquiry() {
                             ) : enquiries.length === 0 ? (
                                 <Tr><Td colSpan={8} textAlign="center">No enquiries found</Td></Tr>
                             ) : enquiries.filter(e => e.studentName?.toLowerCase().includes(search.toLowerCase()) || e.parentName?.toLowerCase().includes(search.toLowerCase())).map((enquiry) => (
-                                <Tr key={enquiry.id} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
+                                <Tr key={enquiry.id} _hover={{ bg: tableHoverBg }}>
                                     <Td>{enquiry.date}</Td>
                                     <Td><Text fontWeight="600">{enquiry.studentName}</Text></Td>
                                     <Td>{enquiry.parentName}</Td>

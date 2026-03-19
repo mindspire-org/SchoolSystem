@@ -24,7 +24,8 @@ const roleDisplayMap = {
 };
 
 export default function UserManagement() {
-  const { campusId, user } = useAuth();
+  const { campusId, user, campuses } = useAuth();
+  const [selectedCampusId, setSelectedCampusId] = useState('');
   const [role, setRole] = useState('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
@@ -325,6 +326,7 @@ export default function UserManagement() {
       <Modal isOpen={createDisc.isOpen} onClose={() => {
         createDisc.onClose();
         setFormData({ name: '', email: '', password: '', role: 'student', active: true });
+        setSelectedCampusId('');
       }} size='lg'>
         <ModalOverlay />
         <ModalContent>
@@ -418,6 +420,23 @@ export default function UserManagement() {
                   : 'Only Student, Teacher, Driver, and Parent roles can be created'}
               </FormHelperText>
             </FormControl>
+
+            {/* Campus dropdown for All Campuses mode */}
+            {!campusId && (
+              <FormControl mb={4} isRequired>
+                <FormLabel>Campus</FormLabel>
+                <Select
+                  placeholder='Select campus'
+                  value={selectedCampusId}
+                  onChange={(e) => setSelectedCampusId(e.target.value)}
+                >
+                  {campuses?.map(c => (
+                    <option key={c.id} value={c.id}>{c.name || c.campusName || c.title || `Campus ${c.id}`}</option>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
             <FormControl display='flex' alignItems='center'>
               <FormLabel mb='0' flex='1'>Active</FormLabel>
               <Switch
@@ -430,6 +449,7 @@ export default function UserManagement() {
             <Button mr={3} onClick={() => {
               createDisc.onClose();
               setFormData({ name: '', email: '', password: '', role: 'student', active: true });
+              setSelectedCampusId('');
             }}>Cancel</Button>
             <Button colorScheme='blue' isLoading={isCreating} onClick={async () => {
               if (!formData.name || !formData.email || !formData.password) {
@@ -443,7 +463,7 @@ export default function UserManagement() {
                 return;
               }
 
-              if (!campusId) {
+              if (!campusId && !selectedCampusId) {
                 toast({
                   title: 'Select a campus',
                   description: 'Campus/branch is required to create a user.',
@@ -467,7 +487,8 @@ export default function UserManagement() {
 
               try {
                 setIsCreating(true);
-                const numericCampusId = Number(campusId);
+                const effectiveCampusId = campusId || selectedCampusId;
+                const numericCampusId = Number(effectiveCampusId);
                 const campusIdToSend = Number.isFinite(numericCampusId) && numericCampusId > 0
                   ? numericCampusId
                   : undefined;

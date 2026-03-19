@@ -20,6 +20,7 @@ export default function Complaint() {
     const { isOpen, onOpen, onClose } = useDisclosure();
     const [form, setForm] = useState({ id: '', date: '', complainant: '', contact: '', category: 'Facilities', priority: 'Medium', subject: '', description: '', status: 'Pending', assignedTo: '', resolution: '' });
     const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
+    const tableHoverBg = useColorModeValue('gray.50', 'gray.700');
 
     useEffect(() => {
         fetchComplaints();
@@ -129,7 +130,7 @@ export default function Complaint() {
                             ) : complaints.length === 0 ? (
                                 <Tr><Td colSpan={8} textAlign="center">No complaints found</Td></Tr>
                             ) : complaints.filter(c => c.subject?.toLowerCase().includes(search.toLowerCase()) || c.complainant?.toLowerCase().includes(search.toLowerCase())).map((complaint) => (
-                                <Tr key={complaint.id} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
+                                <Tr key={complaint.id} _hover={{ bg: tableHoverBg }}>
                                     <Td>{complaint.date}</Td>
                                     <Td>{complaint.complainant}</Td>
                                     <Td>{complaint.category}</Td>

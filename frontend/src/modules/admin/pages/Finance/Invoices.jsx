@@ -16,6 +16,8 @@ import UserSelector from './components/UserSelector';
 import NoUsersWarning, { UserRequiredNotice } from './components/NoUsersWarning';
 import { useFinanceUsers, useUnifiedInvoices } from '../../../../hooks/useFinanceUsers';
 import { financeApi } from '../../../../services/financeApi';
+import { campusesApi } from '../../../../services/api';
+import { useAuth } from '../../../../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
 
 export default function Invoices() {
@@ -26,6 +28,7 @@ export default function Invoices() {
   const rowHoverBg = useColorModeValue('gray.50', 'gray.700');
 
   // State
+  const { campusId } = useAuth();
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -44,6 +47,7 @@ export default function Invoices() {
   const [createForm, setCreateForm] = useState({
     userType: '',
     user: null,
+    campusId: '',
     invoiceType: 'fee',
     amount: 0,
     tax: 0,
@@ -51,9 +55,26 @@ export default function Invoices() {
     description: '',
     dueDate: '',
   });
+  const [campuses, setCampuses] = useState([]);
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState('');
 
+  // Load campuses when modal opens (for All Campuses mode)
+  useEffect(() => {
+    if (!campusId && createDisc.isOpen) {
+      const loadCampuses = async () => {
+        try {
+          const res = await campusesApi.list({ pageSize: 100 });
+          setCampuses(res?.rows || []);
+        } catch (e) {
+          console.error('Failed to load campuses', e);
+        }
+      };
+      loadCampuses();
+    }
+  }, [campusId, createDisc.isOpen]);
+
+  // Prefill from location state
   useEffect(() => {
     const prefill = location?.state?.prefillInvoice;
     if (!prefill) return;
@@ -141,6 +162,7 @@ export default function Invoices() {
     setCreateForm({
       userType: counts.students > 0 ? 'student' : counts.teachers > 0 ? 'teacher' : 'driver',
       user: null,
+      campusId: '',
       invoiceType: 'fee',
       amount: 0,
       tax: 0,
@@ -162,6 +184,11 @@ export default function Invoices() {
       setFormError('Please select a user');
       return;
     }
+    // Validate campus selection when in All Campuses mode
+    if (!campusId && !createForm.campusId) {
+      setFormError('Please select a campus for this invoice');
+      return;
+    }
     if (!createForm.amount || createForm.amount <= 0) {
       setFormError('Please enter a valid amount');
       return;
@@ -174,6 +201,7 @@ export default function Invoices() {
       await financeApi.createUnifiedInvoice({
         userType: createForm.userType,
         userId: createForm.user.id,
+        campusId: campusId ? Number(campusId) : Number(createForm.campusId),
         invoiceType: createForm.invoiceType,
         amount: Number(createForm.amount),
         tax: Number(createForm.tax) || 0,
@@ -562,6 +590,21 @@ export default function Invoices() {
               label="Select User"
               error={!createForm.user && formError ? 'User is required' : ''}
             />
+
+            {!campusId && (
+              <FormControl mt={4} isRequired>
+                <FormLabel>Campus</FormLabel>
+                <Select 
+                  placeholder='Select campus' 
+                  value={createForm.campusId} 
+                  onChange={(e) => setCreateForm(f => ({ ...f, campusId: e.target.value }))}
+                >
+                  {campuses.map(c => (
+                    <option key={c.id} value={c.id}>{c.name || c.campusName || c.title}</option>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
 
             <SimpleGrid columns={2} spacing={4} mt={4}>
               <FormControl isRequired>

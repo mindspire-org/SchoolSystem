@@ -202,6 +202,19 @@ router.post(
 );
 
 router.get(
+  '/:id/attendance/monthly',
+  authenticate,
+  [
+    param('id').isInt({ min: 1 }),
+    query('startDate').optional().isISO8601(),
+    query('endDate').optional().isISO8601(),
+    query('month').optional().matches(monthPattern),
+  ],
+  validate,
+  teacherController.getMonthlyAttendance
+);
+
+router.get(
   '/payrolls',
   authenticate,
   [

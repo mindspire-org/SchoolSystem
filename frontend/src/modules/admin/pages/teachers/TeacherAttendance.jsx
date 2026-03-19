@@ -26,9 +26,20 @@ import {
   useToast,
   useBreakpointValue,
   Tooltip,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
+  Grid,
+  GridItem,
+  VStack,
 } from '@chakra-ui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
-import { MdCalendarToday, MdCheckCircle, MdCancel, MdAccessTime, MdRefresh, MdLogin, MdLogout, MdEventBusy, MdPerson } from 'react-icons/md';
+import { MdCalendarToday, MdCheckCircle, MdCancel, MdAccessTime, MdRefresh, MdLogin, MdLogout, MdEventBusy, MdPerson, MdTrendingUp } from 'react-icons/md';
 import Card from 'components/card/Card.js';
 import MiniStatistics from 'components/card/MiniStatistics';
 import IconBox from 'components/icons/IconBox';
@@ -53,6 +64,17 @@ const TeacherAttendance = () => {
   const [weeklyLoading, setWeeklyLoading] = useState(false);
   const [weeklyTrend, setWeeklyTrend] = useState([]);
   const toast = useToast();
+
+  // Profile modal state
+  const profileModal = useDisclosure();
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
+  const [monthlyAttendance, setMonthlyAttendance] = useState([]);
+  const [monthlyStats, setMonthlyStats] = useState({ present: 0, absent: 0, late: 0, leave: 0, total: 0 });
+  const [monthlyLoading, setMonthlyLoading] = useState(false);
+  const [profileMonth, setProfileMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   // Colors
   const textColor = useColorModeValue('gray.800', 'white');
@@ -180,6 +202,75 @@ const TeacherAttendance = () => {
   useEffect(() => {
     fetchWeeklyAttendance();
   }, [fetchWeeklyAttendance]);
+
+  // Fetch monthly attendance for profile modal
+  const fetchMonthlyAttendance = useCallback(async (teacherId, month) => {
+    if (!teacherId || !month) return;
+    setMonthlyLoading(true);
+    try {
+      const [year, monthNum] = month.split('-');
+      const startDate = `${year}-${monthNum}-01`;
+      const endDate = new Date(Number(year), Number(monthNum), 0).toISOString().split('T')[0];
+      
+      const response = await teacherApi.getTeacherMonthlyAttendance(teacherId, {
+        startDate,
+        endDate,
+        campusId: campusId
+      });
+      
+      const records = Array.isArray(response?.records) ? response.records : 
+                      Array.isArray(response) ? response : [];
+      
+      setMonthlyAttendance(records);
+      
+      // Calculate stats
+      let present = 0, absent = 0, late = 0, leave = 0;
+      records.forEach((r) => {
+        const status = String(r.status || 'absent').toLowerCase();
+        if (status === 'present') present++;
+        else if (status === 'late') late++;
+        else if (status === 'leave') leave++;
+        else absent++;
+      });
+      
+      setMonthlyStats({
+        present,
+        absent,
+        late,
+        leave,
+        total: records.length
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Failed to load monthly attendance',
+        description: error?.message || 'Please try again.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+      setMonthlyAttendance([]);
+      setMonthlyStats({ present: 0, absent: 0, late: 0, leave: 0, total: 0 });
+    } finally {
+      setMonthlyLoading(false);
+    }
+  }, [campusId, toast]);
+
+  // Open profile modal
+  const handleViewProfile = (teacher) => {
+    setSelectedTeacher(teacher);
+    fetchMonthlyAttendance(teacher.teacherId, profileMonth);
+    profileModal.onOpen();
+  };
+
+  // Handle month change in profile modal
+  const handleProfileMonthChange = (e) => {
+    const newMonth = e.target.value;
+    setProfileMonth(newMonth);
+    if (selectedTeacher) {
+      fetchMonthlyAttendance(selectedTeacher.teacherId, newMonth);
+    }
+  };
 
   const handleQuickAction = (teacherId, status) => {
     const now = new Date();
@@ -652,7 +743,7 @@ const TeacherAttendance = () => {
                               bg="#4318FF"
                               color="white"
                               _hover={{ bg: "#3311cc" }}
-                              onClick={() => {}} 
+                              onClick={() => handleViewProfile(teacher)} 
                             />
                           </Tooltip>
                         </HStack>
@@ -665,6 +756,128 @@ const TeacherAttendance = () => {
           </Table>
         </Box>
       </Card>
+
+      {/* Profile Modal */}
+      <Modal isOpen={profileModal.isOpen} onClose={profileModal.onClose} size="4xl">
+        <ModalOverlay />
+        <ModalContent maxH="90vh">
+          <ModalHeader>
+            <Flex align="center" gap={3}>
+              <Avatar src={selectedTeacher?.photo} name={selectedTeacher?.name} size="md" />
+              <Box>
+                <Text fontSize="lg" fontWeight="bold">{selectedTeacher?.name || 'Teacher'} - Attendance Profile</Text>
+                <Text fontSize="sm" color="gray.500">{selectedTeacher?.department} | ID: {selectedTeacher?.employeeId}</Text>
+              </Box>
+            </Flex>
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody overflowY="auto">
+            {/* Month Selector */}
+            <Flex justify="space-between" align="center" mb={4}>
+              <FormControl maxW="200px">
+                <FormLabel fontSize="sm">Select Month</FormLabel>
+                <Input
+                  type="month"
+                  value={profileMonth}
+                  onChange={handleProfileMonthChange}
+                />
+              </FormControl>
+            </Flex>
+
+            {/* Monthly Stats */}
+            <SimpleGrid columns={{ base: 2, md: 5 }} spacing={3} mb={4}>
+              <Card p={3} bg="blue.50">
+                <VStack spacing={1} align="center">
+                  <Text fontSize="2xl" fontWeight="bold" color="blue.600">{monthlyStats.total}</Text>
+                  <Text fontSize="xs" color="gray.600">Total Days</Text>
+                </VStack>
+              </Card>
+              <Card p={3} bg="green.50">
+                <VStack spacing={1} align="center">
+                  <Text fontSize="2xl" fontWeight="bold" color="green.600">{monthlyStats.present}</Text>
+                  <Text fontSize="xs" color="gray.600">Present</Text>
+                </VStack>
+              </Card>
+              <Card p={3} bg="orange.50">
+                <VStack spacing={1} align="center">
+                  <Text fontSize="2xl" fontWeight="bold" color="orange.600">{monthlyStats.late}</Text>
+                  <Text fontSize="xs" color="gray.600">Late</Text>
+                </VStack>
+              </Card>
+              <Card p={3} bg="purple.50">
+                <VStack spacing={1} align="center">
+                  <Text fontSize="2xl" fontWeight="bold" color="purple.600">{monthlyStats.leave}</Text>
+                  <Text fontSize="xs" color="gray.600">Leave</Text>
+                </VStack>
+              </Card>
+              <Card p={3} bg="red.50">
+                <VStack spacing={1} align="center">
+                  <Text fontSize="2xl" fontWeight="bold" color="red.600">{monthlyStats.absent}</Text>
+                  <Text fontSize="xs" color="gray.600">Absent</Text>
+                </VStack>
+              </Card>
+            </SimpleGrid>
+
+            {/* Attendance Table */}
+            {monthlyLoading ? (
+              <Flex align="center" justify="center" py={10}>
+                <Spinner size="lg" mr={3} />
+                <Text>Loading monthly attendance...</Text>
+              </Flex>
+            ) : monthlyAttendance.length === 0 ? (
+              <Text textAlign="center" py={6} color={textColorSecondary}>
+                No attendance records found for this month.
+              </Text>
+            ) : (
+              <Box overflowX="auto">
+                <Table variant="simple" size="sm">
+                  <Thead bg={useColorModeValue('gray.50', 'gray.800')}>
+                    <Tr>
+                      <Th>Date</Th>
+                      <Th>Day</Th>
+                      <Th>Status</Th>
+                      <Th>Check In</Th>
+                      <Th>Check Out</Th>
+                      <Th>Remarks</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {monthlyAttendance.map((record) => {
+                      const date = new Date(record.date);
+                      const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                      const status = String(record.status || 'absent').toLowerCase();
+                      return (
+                        <Tr key={record.date}>
+                          <Td fontSize="sm">{record.date}</Td>
+                          <Td fontSize="sm" color="gray.500">{dayName}</Td>
+                          <Td>
+                            <Badge
+                              colorScheme={
+                                status === 'present' ? 'green' :
+                                status === 'late' ? 'orange' :
+                                status === 'leave' ? 'purple' : 'red'
+                              }
+                              textTransform="capitalize"
+                            >
+                              {status}
+                            </Badge>
+                          </Td>
+                          <Td fontSize="sm">{record.checkInTime || '-'}</Td>
+                          <Td fontSize="sm">{record.checkOutTime || '-'}</Td>
+                          <Td fontSize="sm" color="gray.500">{record.remarks || '-'}</Td>
+                        </Tr>
+                      );
+                    })}
+                  </Tbody>
+                </Table>
+              </Box>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button onClick={profileModal.onClose}>Close</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 };

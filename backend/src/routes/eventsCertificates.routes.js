@@ -253,7 +253,16 @@ const createCRUD = (Model) => ({
             const { campusId } = req.query;
             // Treat 'all' as null/undefined to show data from all campuses
             const effectiveCampusId = campusId && String(campusId).toLowerCase() !== 'all' ? campusId : null;
-            const where = effectiveCampusId ? { campusId: effectiveCampusId } : {};
+            let where = {};
+            if (effectiveCampusId) {
+                // Include events for this campus AND events marked for 'all' campuses (stored as 0)
+                where = {
+                    [Op.or]: [
+                        { campusId: effectiveCampusId },
+                        { campusId: 0 }
+                    ]
+                };
+            }
             const items = await Model.findAll({ where });
             res.json(items);
         } catch (error) {
@@ -271,7 +280,16 @@ const createCRUD = (Model) => ({
     },
     create: async (req, res) => {
         try {
-            const item = await Model.create(req.body);
+            // Convert 'all' to 0 for campusId (All Campuses events)
+            const body = { ...req.body };
+            if (body.campusId === 'all') {
+                body.campusId = 0;
+            } else if (body.campusId === null || body.campusId === undefined || body.campusId === '') {
+                body.campusId = null;
+            } else {
+                body.campusId = Number(body.campusId);
+            }
+            const item = await Model.create(body);
             res.status(201).json(item);
         } catch (error) {
             res.status(500).json({ error: error.message });

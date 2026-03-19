@@ -32,14 +32,17 @@ const createCRUD = (Model) => ({
     getAll: async (req, res) => {
         try {
             const campusId = resolveCampusId(req);
-            const where = campusId ? { campusId } : {};
+            // Shared inventory: campusId=0 is global.
+            // - if campusId provided: return both campusId and shared (0)
+            // - if campusId null (All Campuses): return all campuses
+            const where = campusId ? { campusId: [campusId, 0] } : {};
             const items = await Model.findAll({ where });
 
             if (Model === Category && campusId) {
                 const categories = items.map((c) => c.toJSON());
                 const counts = await Promise.all(
                     categories.map(async (c) => {
-                        const productCount = await Product.count({ where: { campusId, category: c.name } });
+                        const productCount = await Product.count({ where: { campusId: [campusId, 0], category: c.name } });
                         return { ...c, productCount };
                     })
                 );
@@ -56,7 +59,13 @@ const createCRUD = (Model) => ({
             const campusId = resolveCampusId(req);
             const item = await Model.findByPk(req.params.id);
             if (!item) return res.status(404).json({ error: 'Not found' });
-            if (campusId && String(item.campusId) !== String(campusId)) {
+            const isGlobalAdmin = adminRoles.has(req.user?.role);
+            // If campusId specified: allow same campus or shared (0)
+            if (campusId && String(item.campusId) !== String(campusId) && String(item.campusId) !== '0') {
+                return res.status(404).json({ error: 'Not found' });
+            }
+            // If All Campuses: allow global admins to fetch any; non-admins are already scoped by resolveCampusId
+            if (!campusId && !isGlobalAdmin && item?.campusId) {
                 return res.status(404).json({ error: 'Not found' });
             }
             res.json(item);
@@ -67,14 +76,21 @@ const createCRUD = (Model) => ({
     create: async (req, res) => {
         try {
             const campusId = resolveCampusId(req);
-            if (!campusId) return res.status(400).json({ error: 'campusId is required' });
+            const isGlobalAdmin = adminRoles.has(req.user?.role);
+            if (!campusId && !isGlobalAdmin) return res.status(400).json({ error: 'campusId is required' });
 
             const payload = { ...req.body };
             if (payload.id === '' || payload.id === null || payload.id === undefined) delete payload.id;
             if (payload.campusId === '' || payload.campusId === null || payload.campusId === undefined) delete payload.campusId;
             if (payload.campus_id === '' || payload.campus_id === null || payload.campus_id === undefined) delete payload.campus_id;
 
-            const item = await Model.create({ ...payload, campusId });
+            // Option B: creating while in All Campuses creates a shared/global record.
+            const finalCampusId = campusId || (isGlobalAdmin ? 0 : null);
+            if (!finalCampusId && !isGlobalAdmin) {
+                return res.status(400).json({ error: 'campusId is required' });
+            }
+
+            const item = await Model.create({ ...payload, campusId: finalCampusId });
             res.status(201).json(item);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -83,19 +99,27 @@ const createCRUD = (Model) => ({
     update: async (req, res) => {
         try {
             const campusId = resolveCampusId(req);
-            if (!campusId) return res.status(400).json({ error: 'campusId is required' });
+            const isGlobalAdmin = adminRoles.has(req.user?.role);
+            if (!campusId && !isGlobalAdmin) return res.status(400).json({ error: 'campusId is required' });
             const item = await Model.findByPk(req.params.id);
             if (!item) return res.status(404).json({ error: 'Not found' });
-            if (campusId && String(item.campusId) !== String(campusId)) {
+            // If campusId specified: allow same campus or shared (0)
+            if (campusId && String(item.campusId) !== String(campusId) && String(item.campusId) !== '0') {
+                return res.status(404).json({ error: 'Not found' });
+            }
+
+            // In All Campuses mode, allow global admins to update any campus record.
+            if (!campusId && !isGlobalAdmin) {
                 return res.status(404).json({ error: 'Not found' });
             }
 
             const payload = { ...req.body };
-            delete payload.id;
+            if (payload.id === '' || payload.id === null || payload.id === undefined) delete payload.id;
+            else delete payload.id;
             delete payload.campusId;
             delete payload.campus_id;
 
-            await item.update({ ...payload, campusId });
+            await item.update({ ...payload });
             return res.json(item);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -104,10 +128,17 @@ const createCRUD = (Model) => ({
     delete: async (req, res) => {
         try {
             const campusId = resolveCampusId(req);
-            if (!campusId) return res.status(400).json({ error: 'campusId is required' });
+            const isGlobalAdmin = adminRoles.has(req.user?.role);
+            if (!campusId && !isGlobalAdmin) return res.status(400).json({ error: 'campusId is required' });
             const item = await Model.findByPk(req.params.id);
             if (!item) return res.status(404).json({ error: 'Not found' });
-            if (campusId && String(item.campusId) !== String(campusId)) {
+            // If campusId specified: allow same campus or shared (0)
+            if (campusId && String(item.campusId) !== String(campusId) && String(item.campusId) !== '0') {
+                return res.status(404).json({ error: 'Not found' });
+            }
+
+            // In All Campuses mode, allow global admins to delete any campus record.
+            if (!campusId && !isGlobalAdmin) {
                 return res.status(404).json({ error: 'Not found' });
             }
 

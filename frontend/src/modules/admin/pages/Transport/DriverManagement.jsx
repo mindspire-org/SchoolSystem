@@ -72,13 +72,14 @@ export default function DriverManagement() {
   const editDisc = useDisclosure();
   const [form, setForm] = useState({ id: '', name: '', phone: '', license: '', status: 'On Duty', bus: '', busId: '', rating: 0, campusId: '' });
   const textColorSecondary = useColorModeValue('gray.600', 'gray.400');
+  const tableHoverBg = useColorModeValue('gray.50', 'gray.700');
   const [buses, setBuses] = useState([]);
   const [campuses, setCampuses] = useState([]);
 
   const loadDrivers = async () => {
     try {
-      const res = await driversApi.list({ pageSize: 100 });
-      const items = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
+      const data = await driversApi.list({ status: 'active', pageSize: 100 });
+      const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
       setRows(items.map(normalize));
     } catch (e) {
       toast({ title: 'Failed to load drivers', status: 'error' });
@@ -181,7 +182,7 @@ export default function DriverManagement() {
             </Thead>
             <Tbody>
               {filtered.map((d) => (
-                <Tr key={d.id} _hover={{ bg: useColorModeValue('gray.50', 'gray.700') }}>
+                <Tr key={d.id} _hover={{ bg: tableHoverBg }}>
                   <Td><Text fontWeight='600'>{d.name}</Text></Td>
                   <Td>{d.id}</Td>
                   <Td>{d.phone}</Td>
@@ -303,29 +304,35 @@ export default function DriverManagement() {
             <Button variant='ghost' mr={3} onClick={editDisc.onClose}>Cancel</Button>
             <Button colorScheme='blue' onClick={async () => {
               try {
+                if (!form.name || !form.name.trim()) {
+                  toast({ title: 'Name is required', status: 'warning' });
+                  return;
+                }
+                if (!form.campusId) {
+                  toast({ title: 'Please select a campus', status: 'warning' });
+                  return;
+                }
+                const driverData = {
+                    name: form.name,
+                    phone: form.phone,
+                    licenseNumber: form.license,
+                    status: form.status === 'On Duty' ? 'active' : 'inactive',
+                    campusId: Number(form.campusId),
+                };
+                if (form.busId) driverData.busId = Number(form.busId);
+                
                 if (form.id) {
-                  await driversApi.update(form.id, {
-                    name: form.name,
-                    phone: form.phone,
-                    licenseNumber: form.license,
-                    status: form.status === 'On Duty' ? 'active' : 'inactive',
-                    busId: form.busId || null,
-                    campusId: form.campusId || undefined,
-                  });
+                  await driversApi.update(form.id, driverData);
                 } else {
-                  await driversApi.create({
-                    name: form.name,
-                    phone: form.phone,
-                    licenseNumber: form.license,
-                    status: form.status === 'On Duty' ? 'active' : 'inactive',
-                    busId: form.busId || null,
-                    campusId: form.campusId,
-                  });
+                  await driversApi.create(driverData);
                 }
                 await loadDrivers();
                 editDisc.onClose();
                 toast({ title: 'Driver saved', status: 'success' });
-              } catch (e) { toast({ title: 'Failed to save driver', status: 'error' }); }
+              } catch (e) { 
+                console.error(e);
+                toast({ title: e?.response?.data?.error || 'Failed to save driver', status: 'error' }); 
+              }
             }}>Save</Button>
           </ModalFooter>
         </ModalContent>

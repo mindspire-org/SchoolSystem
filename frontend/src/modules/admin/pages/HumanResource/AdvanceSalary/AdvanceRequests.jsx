@@ -93,7 +93,7 @@ export default function AdvanceRequests() {
 
     const handleStatusUpdate = async (id, status) => {
         try {
-            if (status === 'Approved') await advanceSalaryApi.approve(id);
+            if (status === 'Approved') await advanceSalaryApi.approve(id, user?.name || user?.id || 'Admin');
             else await advanceSalaryApi.reject(id, 'Admin Rejected');
             toast({ title: `Request ${status}`, status: 'success' });
             fetchRequests();

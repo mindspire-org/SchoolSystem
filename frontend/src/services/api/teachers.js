@@ -14,6 +14,7 @@ export const deleteScheduleSlot = (id) => http.delete(`/teachers/schedules/${id}
 export const listMyClasses = (params) => http.get('/teachers/my-classes', { params });
 export const listStudentsBySubject = (params) => http.get('/teachers/students-by-subject', { params });
 export const getAttendance = (params) => http.get('/teachers/attendance', { params });
+export const getTeacherMonthlyAttendance = (teacherId, params) => http.get(`/teachers/${teacherId}/attendance/monthly`, { params });
 export const markMyAttendance = (data) => http.post('/teachers/attendance/me', data);
 export const saveAttendance = (data) => http.post('/teachers/attendance', data);
 export const getPayrolls = (params) => http.get('/teachers/payrolls', { params });
