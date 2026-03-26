@@ -31,7 +31,7 @@ export const login = async (req, res, next) => {
       if (allowedModules.includes('Students')) allowedRoles.add('student');
       if (allowedModules.includes('Parents')) allowedRoles.add('parent');
       if (allowedModules.includes('Transport')) allowedRoles.add('driver');
-      if (allowedModules.includes('Dashboard') || allowedModules.includes('Settings')) allowedRoles.add('admin');
+      if (allowedModules.length > 0) allowedRoles.add('admin');
     }
 
     // Ensure auth and campus schema changes are applied
